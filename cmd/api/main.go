@@ -3,6 +3,7 @@ package main
 import (
 	"cinema-ticketing-api/config"
 	"cinema-ticketing-api/database"
+	"cinema-ticketing-api/middleware"
 	"cinema-ticketing-api/routes"
 	"log"
 
@@ -22,7 +23,13 @@ func main() {
 	}
 
 	// Inisialisasi Router
-	r := gin.Default()
+	r := gin.New()
+
+	// Gunakan standard middleware: Panic Recovery, Custom Logger, & CORS
+	r.Use(gin.Recovery())
+	r.Use(middleware.LoggerMiddleware())
+	r.Use(middleware.CorsMiddleware())
+
 	routes.SetupRoutes(r, db)
 
 	// Init Port
