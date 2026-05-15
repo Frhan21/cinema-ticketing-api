@@ -1,0 +1,8 @@
+DROP TABLE IF EXISTS "users"
+DROP TABLE IF EXISTS "studios"
+DROP TABLE IF EXISTS "schedules"
+DROP TABLE IF EXISTS "seats"
+DROP TABLE IF EXISTS "movies"
+DROP TABLE IF EXISTS "tickets"
+DROP TABLE IF EXISTS "transactions"
+DROP TABLE IF EXISTS "transactions_items"
