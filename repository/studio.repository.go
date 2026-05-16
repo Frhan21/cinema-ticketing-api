@@ -39,7 +39,7 @@ func (s *studioRepository) Create(studio *models.Studio) error {
 
 // Delete implements [StudioRepository].
 func (s *studioRepository) Delete(id string) error {
-	return s.db.Table("studios").Where("id = ?", id).Delete(models.Studio{}).Error
+	return s.db.Table("studios").Where("id = ?", id).Delete(&models.Studio{}).Error
 }
 
 // Update implements [StudioRepository].

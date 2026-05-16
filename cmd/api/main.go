@@ -23,11 +23,9 @@ func main() {
 	}
 
 	// Inisialisasi Router
-	r := gin.New()
+	r := gin.Default()
 
-	// Gunakan standard middleware: Panic Recovery, Custom Logger, & CORS
-	r.Use(gin.Recovery())
-	r.Use(middleware.LoggerMiddleware())
+	// Tambahan middleware aplikasi
 	r.Use(middleware.CorsMiddleware())
 
 	routes.SetupRoutes(r, db)

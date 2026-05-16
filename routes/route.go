@@ -26,6 +26,11 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB) {
 	studioService := service.NewStudioService(studioRepo)
 	studioController := controller.NewStudioController(studioService)
 
+	// Movie
+	movieRepo := repository.NewMovieRepository(db)
+	movieService := service.NewMovieService(movieRepo)
+	movieController := controller.NewMovieController(movieService)
+
 	r.GET("/health", func(c *gin.Context) {
 		c.JSON(http.StatusOK, response.SuccessResponse("Cinema Ticketing API is running", nil))
 	})
@@ -61,6 +66,23 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB) {
 			adminStudio.POST("/", studioController.Create)
 			adminStudio.PUT("/:id", studioController.Update)
 			adminStudio.DELETE("/:id", studioController.Delete)
+		}
+	}
+
+	// Movie
+	movieRoute := api.Group("/movie")
+	{
+		// Semua user boleh melihat list movie
+		movieRoute.GET("/", movieController.GetAllMovie)
+		movieRoute.GET("/:id", movieController.GetByIdMovie)
+
+		// Admin hanya boleh membuat, mengupdate, menghapus
+		adminMovie := movieRoute.Group("/")
+		adminMovie.Use(middleware.AuthMiddleware(), middleware.RoleMiddleware("admin"))
+		{
+			adminMovie.POST("/", movieController.CreateMovie)
+			adminMovie.PUT("/:id", movieController.UpdateMovie)
+			adminMovie.DELETE("/:id", movieController.DeleteMovie)
 		}
 	}
 }
