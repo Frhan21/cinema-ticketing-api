@@ -1,9 +1,9 @@
 package controller
 
 import (
-	"cinema-ticketing-api/request"
-	"cinema-ticketing-api/response"
-	"cinema-ticketing-api/service"
+	"cinema-ticketing-api/internal/request"
+	"cinema-ticketing-api/internal/response"
+	"cinema-ticketing-api/internal/service"
 	"errors"
 	"net/http"
 

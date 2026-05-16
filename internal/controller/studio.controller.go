@@ -1,10 +1,10 @@
 package controller
 
 import (
-	"cinema-ticketing-api/models"
-	"cinema-ticketing-api/request"
-	"cinema-ticketing-api/response"
-	"cinema-ticketing-api/service"
+	"cinema-ticketing-api/internal/model"
+	"cinema-ticketing-api/internal/request"
+	"cinema-ticketing-api/internal/response"
+	"cinema-ticketing-api/internal/service"
 	"errors"
 	"net/http"
 
@@ -45,7 +45,7 @@ func (sc *studioController) Create(c *gin.Context) {
 		return
 	}
 
-	studio := models.Studio{
+	studio := model.Studio{
 		Name:       req.Name,
 		Capacity:   req.Capacity,
 		Facilities: req.Facilities,

@@ -1,9 +1,9 @@
 package service
 
 import (
-	"cinema-ticketing-api/models"
-	"cinema-ticketing-api/repository"
-	"cinema-ticketing-api/request"
+	"cinema-ticketing-api/internal/model"
+	"cinema-ticketing-api/internal/repository"
+	"cinema-ticketing-api/internal/request"
 	"errors"
 	"strings"
 
@@ -18,8 +18,8 @@ var (
 )
 
 type UserService interface {
-	GetProfile(id string) (*models.User, error)
-	UpdateProfile(id string, input request.UpdateUserRequest) (*models.User, error)
+	GetProfile(id string) (*model.User, error)
+	UpdateProfile(id string, input request.UpdateUserRequest) (*model.User, error)
 }
 
 type userService struct {
@@ -30,7 +30,7 @@ func NewUserService(userRepository repository.UserRepository) UserService {
 	return &userService{userRepository: userRepository}
 }
 
-func (s *userService) GetProfile(id string) (*models.User, error) {
+func (s *userService) GetProfile(id string) (*model.User, error) {
 	if _, err := uuid.Parse(id); err != nil {
 		return nil, ErrInvalidUserID
 	}
@@ -46,7 +46,7 @@ func (s *userService) GetProfile(id string) (*models.User, error) {
 	return user, nil
 }
 
-func (s *userService) UpdateProfile(id string, input request.UpdateUserRequest) (*models.User, error) {
+func (s *userService) UpdateProfile(id string, input request.UpdateUserRequest) (*model.User, error) {
 	if _, err := uuid.Parse(id); err != nil {
 		return nil, ErrInvalidUserID
 	}

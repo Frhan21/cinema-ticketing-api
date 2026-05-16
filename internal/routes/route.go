@@ -1,11 +1,11 @@
 package routes
 
 import (
-	"cinema-ticketing-api/controller"
-	"cinema-ticketing-api/middleware"
-	"cinema-ticketing-api/repository"
-	"cinema-ticketing-api/response"
-	"cinema-ticketing-api/service"
+	"cinema-ticketing-api/internal/controller"
+	"cinema-ticketing-api/internal/middleware"
+	"cinema-ticketing-api/internal/repository"
+	"cinema-ticketing-api/internal/response"
+	"cinema-ticketing-api/internal/service"
 	"net/http"
 
 	"github.com/gin-gonic/gin"

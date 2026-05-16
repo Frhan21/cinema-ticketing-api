@@ -1,16 +1,16 @@
 package repository
 
 import (
-	"cinema-ticketing-api/models"
+	"cinema-ticketing-api/internal/model"
 
 	"gorm.io/gorm"
 )
 
 type UserRepository interface {
-	FindByEmail(email string) (*models.User, error)
-	FindByID(id string) (*models.User, error)
-	Update(user *models.User) error
-	Create(user *models.User) error
+	FindByEmail(email string) (*model.User, error)
+	FindByID(id string) (*model.User, error)
+	Update(user *model.User) error
+	Create(user *model.User) error
 	Delete(id string) error
 }
 
@@ -22,13 +22,13 @@ func NewUserRepository(db *gorm.DB) UserRepository {
 	return &userRepository{db: db}
 }
 
-func (us *userRepository) Create(user *models.User) error {
+func (us *userRepository) Create(user *model.User) error {
 	return us.db.Table("users").Create(user).Error
 }
 
-func (us *userRepository) FindByEmail(email string) (*models.User, error) {
+func (us *userRepository) FindByEmail(email string) (*model.User, error) {
 
-	user := &models.User{}
+	user := &model.User{}
 	err := us.db.Table("users").Where("email = ?", email).First(user).Error
 	if err != nil {
 		return nil, err
@@ -37,8 +37,8 @@ func (us *userRepository) FindByEmail(email string) (*models.User, error) {
 	return user, nil
 }
 
-func (us *userRepository) FindByID(id string) (*models.User, error) {
-	user := &models.User{}
+func (us *userRepository) FindByID(id string) (*model.User, error) {
+	user := &model.User{}
 
 	err := us.db.Table("users").Where("id = ?", id).First(user).Error
 	if err != nil {
@@ -48,10 +48,10 @@ func (us *userRepository) FindByID(id string) (*models.User, error) {
 	return user, nil
 }
 
-func (us *userRepository) Update(user *models.User) error {
+func (us *userRepository) Update(user *model.User) error {
 	return us.db.Table("users").Save(user).Error
 }
 
 func (us *userRepository) Delete(id string) error {
-	return us.db.Table("users").Delete(&models.User{}, "id = ?", id).Error
+	return us.db.Table("users").Delete(&model.User{}, "id = ?", id).Error
 }

@@ -1,8 +1,8 @@
 package service
 
 import (
-	"cinema-ticketing-api/models"
-	"cinema-ticketing-api/repository"
+	"cinema-ticketing-api/internal/model"
+	"cinema-ticketing-api/internal/repository"
 	"errors"
 
 	"github.com/google/uuid"
@@ -19,7 +19,7 @@ type movieService struct {
 }
 
 // Create implements [MovieService].
-func (m *movieService) Create(movie *models.Movie) error {
+func (m *movieService) Create(movie *model.Movie) error {
 	if movie.Title == "" || movie.Genre == "" || movie.Duration == 0 || movie.PosterUrl == "" {
 		return errors.New("Fill the all required fields")
 	}
@@ -41,7 +41,7 @@ func (m *movieService) Delete(id string) error {
 }
 
 // FindAll implements [MovieService].
-func (m *movieService) FindAll() ([]models.Movie, error) {
+func (m *movieService) FindAll() ([]model.Movie, error) {
 	movies, err := m.movieRepository.FindAll()
 
 	if err != nil {
@@ -52,7 +52,7 @@ func (m *movieService) FindAll() ([]models.Movie, error) {
 }
 
 // FindByID implements [MovieService].
-func (m *movieService) FindByID(id string) (*models.Movie, error) {
+func (m *movieService) FindByID(id string) (*model.Movie, error) {
 	if _, err := uuid.Parse(id); err != nil {
 		return nil, ErrInvalidMovieID
 	}
@@ -70,16 +70,16 @@ func (m *movieService) FindByID(id string) (*models.Movie, error) {
 }
 
 // Update implements [MovieService].
-func (m *movieService) Update(movie *models.Movie) error {
+func (m *movieService) Update(movie *model.Movie) error {
 	return m.movieRepository.Update(movie)
 }
 
 type MovieService interface {
-	Create(movie *models.Movie) error
+	Create(movie *model.Movie) error
 	Delete(id string) error
-	Update(movie *models.Movie) error
-	FindAll() ([]models.Movie, error)
-	FindByID(id string) (*models.Movie, error)
+	Update(movie *model.Movie) error
+	FindAll() ([]model.Movie, error)
+	FindByID(id string) (*model.Movie, error)
 }
 
 func NewMovieService(movieRepo repository.MovieRepository) MovieService {

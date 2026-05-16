@@ -1,7 +1,7 @@
 package middleware
 
 import (
-	"cinema-ticketing-api/response"
+	"cinema-ticketing-api/internal/response"
 	"net/http"
 
 	"github.com/gin-gonic/gin"

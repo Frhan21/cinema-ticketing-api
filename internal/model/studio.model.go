@@ -1,4 +1,4 @@
-package models
+package model
 
 import (
 	"time"
@@ -14,5 +14,3 @@ type Studio struct {
 	CreatedAt  time.Time `json:"created_at"`
 	UpdatedAt  time.Time `json:"updated_at"`
 }
-
-

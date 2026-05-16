@@ -1,9 +1,9 @@
 package database
 
 import (
-	"cinema-ticketing-api/config"
-	"cinema-ticketing-api/models"
-	"cinema-ticketing-api/utils"
+	"cinema-ticketing-api/internal/config"
+	"cinema-ticketing-api/internal/model"
+	"cinema-ticketing-api/pkg/password"
 	"errors"
 	"fmt"
 	"log"
@@ -30,20 +30,20 @@ func SeedAdmin(db *gorm.DB) error {
 		adminName = "Administrator"
 	}
 
-	hashedPassword, err := utils.HashPassword(adminPassword)
+	hashedPassword, err := password.HashPassword(adminPassword)
 	if err != nil {
 		return fmt.Errorf("hash admin password: %w", err)
 	}
 
-	var user models.User
+	var user model.User
 	err = db.Where("email = ?", adminEmail).First(&user).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			admin := models.User{
+			admin := model.User{
 				Name:     adminName,
 				Email:    adminEmail,
 				Password: hashedPassword,
-				Role:     models.AdminRole,
+				Role:     model.AdminRole,
 			}
 
 			if createErr := db.Create(&admin).Error; createErr != nil {
@@ -60,7 +60,7 @@ func SeedAdmin(db *gorm.DB) error {
 	user.Name = adminName
 	user.Email = adminEmail
 	user.Password = hashedPassword
-	user.Role = models.AdminRole
+	user.Role = model.AdminRole
 
 	if err := db.Save(&user).Error; err != nil {
 		return fmt.Errorf("update admin user: %w", err)

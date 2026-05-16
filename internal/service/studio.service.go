@@ -1,8 +1,8 @@
 package service
 
 import (
-	"cinema-ticketing-api/models"
-	"cinema-ticketing-api/repository"
+	"cinema-ticketing-api/internal/model"
+	"cinema-ticketing-api/internal/repository"
 	"errors"
 
 	"github.com/google/uuid"
@@ -15,10 +15,10 @@ var (
 )
 
 type StudioService interface {
-	FindAll() ([]models.Studio, error)
-	FindByID(id string) (*models.Studio, error)
-	Create(studio *models.Studio) error
-	Update(studio *models.Studio) error
+	FindAll() ([]model.Studio, error)
+	FindByID(id string) (*model.Studio, error)
+	Create(studio *model.Studio) error
+	Update(studio *model.Studio) error
 	Delete(id string) error
 }
 
@@ -27,7 +27,7 @@ type studioService struct {
 }
 
 // Create implements [StudioService].
-func (s *studioService) Create(studio *models.Studio) error {
+func (s *studioService) Create(studio *model.Studio) error {
 	studio.ID = uuid.New()
 	return s.studioRepo.Create(studio)
 }
@@ -42,12 +42,12 @@ func (s *studioService) Delete(id string) error {
 }
 
 // FindAll implements [StudioService].
-func (s *studioService) FindAll() ([]models.Studio, error) {
+func (s *studioService) FindAll() ([]model.Studio, error) {
 	return s.studioRepo.FindAll()
 }
 
 // FindByID implements [StudioService].
-func (s *studioService) FindByID(id string) (*models.Studio, error) {
+func (s *studioService) FindByID(id string) (*model.Studio, error) {
 	if _, err := uuid.Parse(id); err != nil {
 		return nil, ErrInvalidStudioID
 	}
@@ -64,7 +64,7 @@ func (s *studioService) FindByID(id string) (*models.Studio, error) {
 }
 
 // Update implements [StudioService].
-func (s *studioService) Update(studio *models.Studio) error {
+func (s *studioService) Update(studio *model.Studio) error {
 	return s.studioRepo.Update(studio)
 }
 

@@ -1,10 +1,10 @@
 package controller
 
 import (
-	"cinema-ticketing-api/models"
-	"cinema-ticketing-api/request"
-	"cinema-ticketing-api/response"
-	"cinema-ticketing-api/service"
+	"cinema-ticketing-api/internal/model"
+	"cinema-ticketing-api/internal/request"
+	"cinema-ticketing-api/internal/response"
+	"cinema-ticketing-api/internal/service"
 	"errors"
 	"net/http"
 
@@ -23,7 +23,7 @@ func (m *movieController) Create(c *gin.Context) {
 		return
 	}
 
-	movie := models.Movie{
+	movie := model.Movie{
 		Title:     req.Title,
 		Genre:     req.Genre,
 		Duration:  req.Duration,

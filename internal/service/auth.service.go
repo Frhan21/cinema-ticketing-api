@@ -1,11 +1,12 @@
 package service
 
 import (
-	"cinema-ticketing-api/models"
-	"cinema-ticketing-api/repository"
-	"cinema-ticketing-api/request"
-	"cinema-ticketing-api/response"
-	"cinema-ticketing-api/utils"
+	"cinema-ticketing-api/internal/model"
+	"cinema-ticketing-api/internal/repository"
+	"cinema-ticketing-api/internal/request"
+	"cinema-ticketing-api/internal/response"
+	"cinema-ticketing-api/pkg/jwt"
+	"cinema-ticketing-api/pkg/password"
 	"errors"
 
 	"gorm.io/gorm"
@@ -31,11 +32,11 @@ func (a *authService) Login(req request.LoginRequest) (*response.AuthResponse, e
 		return nil, err
 	}
 
-	if !utils.CheckPasswordHash(req.Password, existingUser.Password) {
+	if !password.CheckPasswordHash(req.Password, existingUser.Password) {
 		return nil, errors.New("Invalid email or password")
 	}
 
-	token, err := utils.GenerateJwt(existingUser.ID, string(existingUser.Role))
+	token, err := jwt.GenerateJwt(existingUser.ID, string(existingUser.Role))
 
 	if err != nil {
 		return nil, err
@@ -68,17 +69,17 @@ func (a *authService) Register(req request.RegisterRequest) (*response.AuthRespo
 		return nil, errors.New("Password and confirm password do not match")
 	}
 
-	hashsedPassword, err := utils.HashPassword(req.Password)
+	hashsedPassword, err := password.HashPassword(req.Password)
 
 	if err != nil {
 		return nil, err
 	}
 
-	user := models.User{
+	user := model.User{
 		Name:     req.Name,
 		Email:    req.Email,
 		Password: hashsedPassword,
-		Role:     models.UserRole,
+		Role:     model.UserRole,
 	}
 
 	err = a.userRepository.Create(&user)
@@ -87,7 +88,7 @@ func (a *authService) Register(req request.RegisterRequest) (*response.AuthRespo
 		return nil, err
 	}
 
-	token, err := utils.GenerateJwt(user.ID, string(user.Role))
+	token, err := jwt.GenerateJwt(user.ID, string(user.Role))
 
 	if err != nil {
 		return nil, err

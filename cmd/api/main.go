@@ -1,10 +1,10 @@
 package main
 
 import (
-	"cinema-ticketing-api/config"
-	"cinema-ticketing-api/database"
-	"cinema-ticketing-api/middleware"
-	"cinema-ticketing-api/routes"
+	"cinema-ticketing-api/internal/config"
+	"cinema-ticketing-api/pkg/database"
+	"cinema-ticketing-api/internal/middleware"
+	"cinema-ticketing-api/internal/routes"
 	"log"
 
 	"github.com/gin-gonic/gin"
