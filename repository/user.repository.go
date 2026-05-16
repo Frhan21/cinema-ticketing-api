@@ -8,7 +8,7 @@ import (
 
 type UserRepository interface {
 	FindByEmail(email string) (*models.User, error)
-	FindById(id string) (*models.User, error)
+	FindByID(id string) (*models.User, error)
 	Update(user *models.User) error
 	Create(user *models.User) error
 	Delete(id string) error
@@ -37,7 +37,7 @@ func (us *userRepository) FindByEmail(email string) (*models.User, error) {
 	return user, nil
 }
 
-func (us *userRepository) FindById(id string) (*models.User, error) {
+func (us *userRepository) FindByID(id string) (*models.User, error) {
 	user := &models.User{}
 
 	err := us.db.Table("users").Where("id = ?", id).First(user).Error

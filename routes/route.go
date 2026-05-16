@@ -73,16 +73,16 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB) {
 	movieRoute := api.Group("/movie")
 	{
 		// Semua user boleh melihat list movie
-		movieRoute.GET("/", movieController.GetAllMovie)
-		movieRoute.GET("/:id", movieController.GetByIdMovie)
+		movieRoute.GET("/", movieController.GetAll)
+		movieRoute.GET("/:id", movieController.GetByID)
 
 		// Admin hanya boleh membuat, mengupdate, menghapus
 		adminMovie := movieRoute.Group("/")
 		adminMovie.Use(middleware.AuthMiddleware(), middleware.RoleMiddleware("admin"))
 		{
-			adminMovie.POST("/", movieController.CreateMovie)
-			adminMovie.PUT("/:id", movieController.UpdateMovie)
-			adminMovie.DELETE("/:id", movieController.DeleteMovie)
+			adminMovie.POST("/", movieController.Create)
+			adminMovie.PUT("/:id", movieController.Update)
+			adminMovie.DELETE("/:id", movieController.Delete)
 		}
 	}
 }

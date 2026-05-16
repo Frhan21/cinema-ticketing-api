@@ -3,8 +3,15 @@ package service
 import (
 	"cinema-ticketing-api/models"
 	"cinema-ticketing-api/repository"
+	"errors"
 
 	"github.com/google/uuid"
+	"gorm.io/gorm"
+)
+
+var (
+	ErrStudioNotFound  = errors.New("studio not found")
+	ErrInvalidStudioID = errors.New("invalid studio id")
 )
 
 type StudioService interface {
@@ -27,6 +34,10 @@ func (s *studioService) Create(studio *models.Studio) error {
 
 // Delete implements [StudioService].
 func (s *studioService) Delete(id string) error {
+	_, err := s.FindByID(id)
+	if err != nil {
+		return err
+	}
 	return s.studioRepo.Delete(id)
 }
 
@@ -37,8 +48,15 @@ func (s *studioService) FindAll() ([]models.Studio, error) {
 
 // FindByID implements [StudioService].
 func (s *studioService) FindByID(id string) (*models.Studio, error) {
+	if _, err := uuid.Parse(id); err != nil {
+		return nil, ErrInvalidStudioID
+	}
+
 	studio, err := s.studioRepo.FindByID(id)
 	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrStudioNotFound
+		}
 		return nil, err
 	}
 

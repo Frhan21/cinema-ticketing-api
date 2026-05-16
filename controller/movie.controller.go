@@ -5,6 +5,7 @@ import (
 	"cinema-ticketing-api/request"
 	"cinema-ticketing-api/response"
 	"cinema-ticketing-api/service"
+	"errors"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -14,8 +15,8 @@ type movieController struct {
 	movieService service.MovieService
 }
 
-// CreateMovie implements [MovieController].
-func (m *movieController) CreateMovie(c *gin.Context) {
+// Create implements [MovieController].
+func (m *movieController) Create(c *gin.Context) {
 	var req request.MovieRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, response.ErrorResponse(err.Error()))
@@ -38,27 +39,27 @@ func (m *movieController) CreateMovie(c *gin.Context) {
 	c.JSON(http.StatusOK, response.SuccessResponse("Success create movie", movie))
 }
 
-// DeleteMovie implements [MovieController].
-func (m *movieController) DeleteMovie(c *gin.Context) {
+// Delete implements [MovieController].
+func (m *movieController) Delete(c *gin.Context) {
 	id := c.Param("id")
-	movie, err := m.movieService.GetById(id)
+	movie, err := m.movieService.FindByID(id)
 	if err != nil {
-		c.JSON(http.StatusNotFound, response.ErrorResponse("Movie not found"))
+		c.JSON(movieStatusCode(err), response.ErrorResponse(err.Error()))
 		return
 	}
 
 	err = m.movieService.Delete(id)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, response.ErrorResponse(err.Error()))
+		c.JSON(movieStatusCode(err), response.ErrorResponse(err.Error()))
 		return
 	}
 
 	c.JSON(http.StatusOK, response.SuccessResponse("Success delete movie", movie))
 }
 
-// GetAllMovie implements [MovieController].
-func (m *movieController) GetAllMovie(c *gin.Context) {
-	movies, err := m.movieService.GetAll()
+// GetAll implements [MovieController].
+func (m *movieController) GetAll(c *gin.Context) {
+	movies, err := m.movieService.FindAll()
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, response.ErrorResponse(err.Error()))
 		return
@@ -66,27 +67,27 @@ func (m *movieController) GetAllMovie(c *gin.Context) {
 	c.JSON(http.StatusOK, response.SuccessResponse("Success get all movie", movies))
 }
 
-// GetByIdMovie implements [MovieController].
-func (m *movieController) GetByIdMovie(c *gin.Context) {
+// GetByID implements [MovieController].
+func (m *movieController) GetByID(c *gin.Context) {
 	id := c.Param("id")
-	movie, err := m.movieService.GetById(id)
+	movie, err := m.movieService.FindByID(id)
 	if err != nil {
-		c.JSON(http.StatusNotFound, response.ErrorResponse("Movie not found"))
+		c.JSON(movieStatusCode(err), response.ErrorResponse(err.Error()))
 		return
 	}
 
 	c.JSON(http.StatusOK, response.SuccessResponse("Success get movie by id", movie))
 }
 
-// UpdateMovie implements [MovieController].
-func (m *movieController) UpdateMovie(c *gin.Context) {
+// Update implements [MovieController].
+func (m *movieController) Update(c *gin.Context) {
 	var req request.UpdateMovieRequest
 	id := c.Param("id")
 
-	movie, err := m.movieService.GetById(id)
+	movie, err := m.movieService.FindByID(id)
 
 	if err != nil {
-		c.JSON(http.StatusNotFound, response.ErrorResponse("Movie not found"))
+		c.JSON(movieStatusCode(err), response.ErrorResponse(err.Error()))
 		return
 	}
 
@@ -107,24 +108,35 @@ func (m *movieController) UpdateMovie(c *gin.Context) {
 	if req.PosterUrl != nil {
 		movie.PosterUrl = *req.PosterUrl
 	}
-	updatedMovie, err := m.movieService.Update(id, movie)
+	err = m.movieService.Update(movie)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, response.ErrorResponse(err.Error()))
 		return
 	}
 
-	c.JSON(http.StatusOK, response.SuccessResponse("Success update movie", updatedMovie))
+	c.JSON(http.StatusOK, response.SuccessResponse("Success update movie", movie))
 
 }
 
 type MovieController interface {
-	CreateMovie(c *gin.Context)
-	UpdateMovie(c *gin.Context)
-	GetAllMovie(c *gin.Context)
-	GetByIdMovie(c *gin.Context)
-	DeleteMovie(c *gin.Context)
+	Create(c *gin.Context)
+	Update(c *gin.Context)
+	GetAll(c *gin.Context)
+	GetByID(c *gin.Context)
+	Delete(c *gin.Context)
 }
 
 func NewMovieController(movieService service.MovieService) MovieController {
 	return &movieController{movieService: movieService}
+}
+
+func movieStatusCode(err error) int {
+	switch {
+	case errors.Is(err, service.ErrInvalidMovieID):
+		return http.StatusBadRequest
+	case errors.Is(err, service.ErrMovieNotFound):
+		return http.StatusNotFound
+	default:
+		return http.StatusInternalServerError
+	}
 }

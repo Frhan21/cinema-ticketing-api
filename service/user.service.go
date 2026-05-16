@@ -35,7 +35,7 @@ func (s *userService) GetProfile(id string) (*models.User, error) {
 		return nil, ErrInvalidUserID
 	}
 
-	user, err := s.userRepository.FindById(id)
+	user, err := s.userRepository.FindByID(id)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, ErrUserNotFound
@@ -51,7 +51,7 @@ func (s *userService) UpdateProfile(id string, input request.UpdateUserRequest) 
 		return nil, ErrInvalidUserID
 	}
 
-	user, err := s.userRepository.FindById(id)
+	user, err := s.userRepository.FindByID(id)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, ErrUserNotFound
