@@ -3,6 +3,7 @@ package repository
 import (
 	"cinema-ticketing-api/internal/model"
 
+	"github.com/google/uuid"
 	"gorm.io/gorm"
 )
 
@@ -16,7 +17,7 @@ func (m *movieRepository) Create(movie *model.Movie) error {
 }
 
 // Delete implements [MovieRepository].
-func (m *movieRepository) Delete(id string) error {
+func (m *movieRepository) Delete(id uuid.UUID) error {
 	return m.db.Table("movies").Where("id = ?", id).Delete(&model.Movie{}).Error
 }
 
@@ -27,7 +28,7 @@ func (m *movieRepository) FindAll() ([]model.Movie, error) {
 }
 
 // FindByID implements [MovieRepository].
-func (m *movieRepository) FindByID(id string) (*model.Movie, error) {
+func (m *movieRepository) FindByID(id uuid.UUID) (*model.Movie, error) {
 	var movie *model.Movie
 	err := m.db.Table("movies").Where("id = ?", id).First(&movie).Error
 	if err != nil {
@@ -45,8 +46,8 @@ type MovieRepository interface {
 	Create(movie *model.Movie) error
 	Update(movie *model.Movie) error
 	FindAll() ([]model.Movie, error)
-	FindByID(id string) (*model.Movie, error)
-	Delete(id string) error
+	FindByID(id uuid.UUID) (*model.Movie, error)
+	Delete(id uuid.UUID) error
 }
 
 func NewMovieRepository(db *gorm.DB) MovieRepository {

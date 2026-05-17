@@ -35,10 +35,11 @@ func (s *studioService) Create(studio *model.Studio) error {
 // Delete implements [StudioService].
 func (s *studioService) Delete(id string) error {
 	_, err := s.FindByID(id)
+	parsedID, err := uuid.Parse(id)
 	if err != nil {
-		return err
+		return ErrInvalidStudioID
 	}
-	return s.studioRepo.Delete(id)
+	return s.studioRepo.Delete(parsedID)
 }
 
 // FindAll implements [StudioService].
@@ -48,11 +49,12 @@ func (s *studioService) FindAll() ([]model.Studio, error) {
 
 // FindByID implements [StudioService].
 func (s *studioService) FindByID(id string) (*model.Studio, error) {
-	if _, err := uuid.Parse(id); err != nil {
+	parsedID, err := uuid.Parse(id)
+	if err != nil {
 		return nil, ErrInvalidStudioID
 	}
 
-	studio, err := s.studioRepo.FindByID(id)
+	studio, err := s.studioRepo.FindByID(parsedID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, ErrStudioNotFound

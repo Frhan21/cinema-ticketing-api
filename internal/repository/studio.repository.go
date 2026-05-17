@@ -3,15 +3,16 @@ package repository
 import (
 	"cinema-ticketing-api/internal/model"
 
+	"github.com/google/uuid"
 	"gorm.io/gorm"
 )
 
 type StudioRepository interface {
 	FindAll() ([]model.Studio, error)
-	FindByID(id string) (*model.Studio, error)
+	FindByID(id uuid.UUID) (*model.Studio, error)
 	Create(studio *model.Studio) error
 	Update(studio *model.Studio) error
-	Delete(id string) error
+	Delete(id uuid.UUID) error
 }
 
 type studioRepository struct {
@@ -26,7 +27,7 @@ func (s *studioRepository) FindAll() ([]model.Studio, error) {
 }
 
 // FindByID implements [StudioRepository].
-func (s *studioRepository) FindByID(id string) (*model.Studio, error) {
+func (s *studioRepository) FindByID(id uuid.UUID) (*model.Studio, error) {
 	studio := &model.Studio{}
 	err := s.db.Table("studios").Where("id = ?", id).First(&studio).Error
 	return studio, err
@@ -38,7 +39,7 @@ func (s *studioRepository) Create(studio *model.Studio) error {
 }
 
 // Delete implements [StudioRepository].
-func (s *studioRepository) Delete(id string) error {
+func (s *studioRepository) Delete(id uuid.UUID) error {
 	return s.db.Table("studios").Where("id = ?", id).Delete(&model.Studio{}).Error
 }
 

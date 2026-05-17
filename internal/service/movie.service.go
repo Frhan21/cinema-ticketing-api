@@ -31,13 +31,18 @@ func (m *movieService) Create(movie *model.Movie) error {
 
 // Delete implements [MovieService].
 func (m *movieService) Delete(id string) error {
-	_, err := m.movieRepository.FindByID(id)
+	parsedID, err := uuid.Parse(id)
+	if err != nil {
+		return ErrInvalidMovieID
+	}
+
+	_, err = m.movieRepository.FindByID(parsedID)
 
 	if err != nil {
 		return err
 	}
 
-	return m.movieRepository.Delete(id)
+	return m.movieRepository.Delete(parsedID)
 }
 
 // FindAll implements [MovieService].
@@ -53,11 +58,12 @@ func (m *movieService) FindAll() ([]model.Movie, error) {
 
 // FindByID implements [MovieService].
 func (m *movieService) FindByID(id string) (*model.Movie, error) {
-	if _, err := uuid.Parse(id); err != nil {
+	parsedID, err := uuid.Parse(id)
+	if err != nil {
 		return nil, ErrInvalidMovieID
 	}
 
-	movie, err := m.movieRepository.FindByID(id)
+	movie, err := m.movieRepository.FindByID(parsedID)
 
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {

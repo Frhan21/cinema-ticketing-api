@@ -3,15 +3,16 @@ package repository
 import (
 	"cinema-ticketing-api/internal/model"
 
+	"github.com/google/uuid"
 	"gorm.io/gorm"
 )
 
 type UserRepository interface {
 	FindByEmail(email string) (*model.User, error)
-	FindByID(id string) (*model.User, error)
+	FindByID(id uuid.UUID) (*model.User, error)
 	Update(user *model.User) error
 	Create(user *model.User) error
-	Delete(id string) error
+	Delete(id uuid.UUID) error
 }
 
 type userRepository struct {
@@ -37,7 +38,7 @@ func (us *userRepository) FindByEmail(email string) (*model.User, error) {
 	return user, nil
 }
 
-func (us *userRepository) FindByID(id string) (*model.User, error) {
+func (us *userRepository) FindByID(id uuid.UUID) (*model.User, error) {
 	user := &model.User{}
 
 	err := us.db.Table("users").Where("id = ?", id).First(user).Error
@@ -52,6 +53,6 @@ func (us *userRepository) Update(user *model.User) error {
 	return us.db.Table("users").Save(user).Error
 }
 
-func (us *userRepository) Delete(id string) error {
+func (us *userRepository) Delete(id uuid.UUID) error {
 	return us.db.Table("users").Delete(&model.User{}, "id = ?", id).Error
 }

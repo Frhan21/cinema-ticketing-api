@@ -31,11 +31,12 @@ func NewUserService(userRepository repository.UserRepository) UserService {
 }
 
 func (s *userService) GetProfile(id string) (*model.User, error) {
-	if _, err := uuid.Parse(id); err != nil {
+	parsedID, err := uuid.Parse(id)
+	if err != nil {
 		return nil, ErrInvalidUserID
 	}
 
-	user, err := s.userRepository.FindByID(id)
+	user, err := s.userRepository.FindByID(parsedID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, ErrUserNotFound
@@ -47,11 +48,12 @@ func (s *userService) GetProfile(id string) (*model.User, error) {
 }
 
 func (s *userService) UpdateProfile(id string, input request.UpdateUserRequest) (*model.User, error) {
-	if _, err := uuid.Parse(id); err != nil {
+	parsedID, err := uuid.Parse(id)
+	if err != nil {
 		return nil, ErrInvalidUserID
 	}
 
-	user, err := s.userRepository.FindByID(id)
+	user, err := s.userRepository.FindByID(parsedID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, ErrUserNotFound

@@ -60,7 +60,7 @@ func (sc *studioController) Create(c *gin.Context) {
 
 func (sc *studioController) Update(c *gin.Context) {
 	id := c.Param("id")
-	
+
 	// Cek apakah studio exists terlebih dahulu
 	existingStudio, err := sc.studioService.FindByID(id)
 	if err != nil {
