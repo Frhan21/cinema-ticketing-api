@@ -31,6 +31,11 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB) {
 	movieService := service.NewMovieService(movieRepo)
 	movieController := controller.NewMovieController(movieService)
 
+	// Seat
+	seatRepo := repository.NewSeatRepository(db)
+	seatService := service.NewSeatService(seatRepo)
+	seatController := controller.NewSeatController(seatService)
+
 	r.GET("/health", func(c *gin.Context) {
 		c.JSON(http.StatusOK, response.SuccessResponse("Cinema Ticketing API is running", nil))
 	})
@@ -52,6 +57,7 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB) {
 		userRoute.PUT("/profile/", userController.UpdateProfile)
 	}
 
+	// Studio
 	studioRoute := api.Group("/studio")
 	studioRoute.Use(middleware.AuthMiddleware())
 	{
@@ -83,6 +89,25 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB) {
 			adminMovie.POST("/", movieController.Create)
 			adminMovie.PUT("/:id", movieController.Update)
 			adminMovie.DELETE("/:id", movieController.Delete)
+		}
+	}
+
+	// Seat
+	seatRoute := api.Group("/seat")
+	seatRoute.Use(middleware.AuthMiddleware())
+	{
+		// Semua user boleh melihat list seat
+		seatRoute.GET("/", seatController.FindAll)
+		seatRoute.GET("/:id", seatController.FindByID)
+		seatRoute.GET("/studio/:studio_id", seatController.FindByStudioID)
+
+		// Admin hanya boleh membuat, mengupdate, menghapus
+		adminSeat := seatRoute.Group("/")
+		adminSeat.Use(middleware.RoleMiddleware("admin"))
+		{
+			adminSeat.POST("/", seatController.Create)
+			adminSeat.PUT("/:id", seatController.Update)
+			adminSeat.DELETE("/:id", seatController.Delete)
 		}
 	}
 }
