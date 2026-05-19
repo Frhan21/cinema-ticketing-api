@@ -4,6 +4,8 @@ import (
 	"cinema-ticketing-api/internal/request"
 	"cinema-ticketing-api/internal/response"
 	"cinema-ticketing-api/internal/service"
+	"cinema-ticketing-api/pkg/pagination"
+	"cinema-ticketing-api/pkg/utils"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -27,13 +29,13 @@ func (s *scheduleController) Create(c *gin.Context) {
 	var req request.CreateSchedule
 
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.ErrorResponse(err.Error())
+		c.JSON(http.StatusBadRequest, response.ErrorResponse(err.Error()))
 		return
 	}
 
 	schedule, err := s.scheduleService.Create(req)
 	if err != nil {
-		response.ErrorResponse(err.Error())
+		c.JSON(http.StatusInternalServerError, response.ErrorResponse(err.Error()))
 		return
 	}
 
@@ -41,8 +43,8 @@ func (s *scheduleController) Create(c *gin.Context) {
 		ID:        schedule.ID,
 		MovieID:   schedule.MovieID,
 		StudioID:  schedule.StudioID,
-		StartTime: schedule.StartTime.Format("2006-01-02T15:04:05Z"),
-		EndTime:   schedule.EndTime.Format("2006-01-02T15:04:05Z"),
+		StartTime: utils.FormatTime(schedule.StartTime),
+		EndTime:   utils.FormatTime(schedule.EndTime),
 		Price:     schedule.Price,
 	}))
 }
@@ -51,7 +53,7 @@ func (s *scheduleController) Create(c *gin.Context) {
 func (s *scheduleController) Delete(c *gin.Context) {
 	id := c.Param("id")
 	if id == "" {
-		response.ErrorResponse("Schedule ID is required")
+		c.JSON(http.StatusBadRequest, response.ErrorResponse("Schedule ID is required"))
 		return
 	}
 	parsedID, err := uuid.Parse(id)
@@ -69,24 +71,44 @@ func (s *scheduleController) Delete(c *gin.Context) {
 
 // FindAll implements [ScheduleController].
 func (s *scheduleController) FindAll(c *gin.Context) {
-	var req request.ScheduleRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
+	var req request.PaginationRequest
+	if err := c.ShouldBindQuery(&req); err != nil {
 		c.JSON(http.StatusBadRequest, response.ErrorResponse(err.Error()))
 		return
 	}
-	schedules, err := s.scheduleService.FindAll(req)
+	schedules, count, err := s.scheduleService.FindAll(req)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, response.ErrorResponse(err.Error()))
 		return
 	}
-	c.JSON(http.StatusOK, response.SuccessResponse("Schedules fetched successfully", schedules))
+
+	meta := &response.Meta{
+		Page:      req.Page,
+		PerPage:   req.PerPage,
+		TotalData: int(count),
+		TotalPage: pagination.GetTotalPage(count, req.PerPage),
+	}
+
+	var scheduleResponses []response.ScheduleResponse
+	for _, sch := range schedules {
+		scheduleResponses = append(scheduleResponses, response.ScheduleResponse{
+			ID:        sch.ID,
+			MovieID:   sch.MovieID,
+			StudioID:  sch.StudioID,
+			StartTime: utils.FormatTime(sch.StartTime),
+			EndTime:   utils.FormatTime(sch.EndTime),
+			Price:     sch.Price,
+		})
+	}
+
+	c.JSON(http.StatusOK, response.SuccessResponseWithMeta("Schedules fetched successfully", scheduleResponses, meta))
 }
 
 // FindByID implements [ScheduleController].
 func (s *scheduleController) FindByID(c *gin.Context) {
 	id := c.Param("id")
 	if id == "" {
-		response.ErrorResponse("Schedule ID is required")
+		c.JSON(http.StatusBadRequest, response.ErrorResponse("Schedule ID is required"))
 		return
 	}
 	parsedID, err := uuid.Parse(id)
@@ -99,14 +121,21 @@ func (s *scheduleController) FindByID(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, response.ErrorResponse(err.Error()))
 		return
 	}
-	c.JSON(http.StatusOK, response.SuccessResponse("Schedule fetched successfully", schedule))
+	c.JSON(http.StatusOK, response.SuccessResponse("Schedule fetched successfully", &response.ScheduleResponse{
+		ID:        schedule.ID,
+		MovieID:   schedule.MovieID,
+		StudioID:  schedule.StudioID,
+		StartTime: utils.FormatTime(schedule.StartTime),
+		EndTime:   utils.FormatTime(schedule.EndTime),
+		Price:     schedule.Price,
+	}))
 }
 
 // Update implements [ScheduleController].
 func (s *scheduleController) Update(c *gin.Context) {
 	id := c.Param("id")
 	if id == "" {
-		response.ErrorResponse("Schedule ID is required")
+		c.JSON(http.StatusBadRequest, response.ErrorResponse("Schedule ID is required"))
 		return
 	}
 	parsedID, err := uuid.Parse(id)
@@ -128,8 +157,8 @@ func (s *scheduleController) Update(c *gin.Context) {
 		ID:        schedule.ID,
 		MovieID:   schedule.MovieID,
 		StudioID:  schedule.StudioID,
-		StartTime: schedule.StartTime.Format("2006-01-02T15:04:05Z"),
-		EndTime:   schedule.EndTime.Format("2006-01-02T15:04:05Z"),
+		StartTime: utils.FormatTime(schedule.StartTime),
+		EndTime:   utils.FormatTime(schedule.EndTime),
 		Price:     schedule.Price,
 	}))
 }

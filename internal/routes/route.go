@@ -3,43 +3,22 @@ package routes
 import (
 	"cinema-ticketing-api/internal/controller"
 	"cinema-ticketing-api/internal/middleware"
-	"cinema-ticketing-api/internal/repository"
 	"cinema-ticketing-api/internal/response"
-	"cinema-ticketing-api/internal/service"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-	"gorm.io/gorm"
 )
 
-func SetupRoutes(r *gin.Engine, db *gorm.DB) {
+type RouteControllers struct {
+	Auth     *controller.AuthController
+	User     *controller.UserController
+	Studio   controller.StudioController
+	Movie    controller.MovieController
+	Seat     controller.SeatController
+	Schedule controller.ScheduleController
+}
 
-	// User dan Auth
-	userRepo := repository.NewUserRepository(db)
-	authService := service.NewAuthService(userRepo)
-	userService := service.NewUserService(userRepo)
-	authController := controller.NewAuthController(authService)
-	userController := controller.NewUserController(userService)
-
-	// Studio
-	studioRepo := repository.NewStudioRepository(db)
-	studioService := service.NewStudioService(studioRepo)
-	studioController := controller.NewStudioController(studioService)
-
-	// Movie
-	movieRepo := repository.NewMovieRepository(db)
-	movieService := service.NewMovieService(movieRepo)
-	movieController := controller.NewMovieController(movieService)
-
-	// Seat
-	seatRepo := repository.NewSeatRepository(db)
-	seatService := service.NewSeatService(seatRepo)
-	seatController := controller.NewSeatController(seatService)
-
-	// Schedule
-	scheduleRepo := repository.NewScheduleRepository(db)
-	scheduleService := service.NewScheduleService(scheduleRepo)
-	scheduleController := controller.NewScheduleController(scheduleService)
+func SetupRoutes(r *gin.Engine, ctrl *RouteControllers) {
 
 	r.GET("/health", func(c *gin.Context) {
 		c.JSON(http.StatusOK, response.SuccessResponse("Cinema Ticketing API is running", nil))
@@ -50,16 +29,16 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB) {
 	// Authentication
 	authRoute := api.Group("/auth")
 	{
-		authRoute.POST("/register", authController.Register)
-		authRoute.POST("/login", authController.Login)
+		authRoute.POST("/register", ctrl.Auth.Register)
+		authRoute.POST("/login", ctrl.Auth.Login)
 	}
 
 	// Get data profile user dan Update Profile
 	userRoute := api.Group("/user")
 	userRoute.Use(middleware.AuthMiddleware())
 	{
-		userRoute.GET("/profile", userController.GetProfile)
-		userRoute.PUT("/profile/", userController.UpdateProfile)
+		userRoute.GET("/profile", ctrl.User.GetProfile)
+		userRoute.PUT("/profile/", ctrl.User.UpdateProfile)
 	}
 
 	// Studio
@@ -67,16 +46,16 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB) {
 	studioRoute.Use(middleware.AuthMiddleware())
 	{
 		// Semua user boleh melihat list studio
-		studioRoute.GET("/", studioController.GetAll)
-		studioRoute.GET("/:id", studioController.GetByID)
+		studioRoute.GET("/", ctrl.Studio.GetAll)
+		studioRoute.GET("/:id", ctrl.Studio.GetByID)
 
 		// Admin hanya boleh membuat, mengupdate, menghapus
 		adminStudio := studioRoute.Group("/")
 		adminStudio.Use(middleware.RoleMiddleware("admin"))
 		{
-			adminStudio.POST("/", studioController.Create)
-			adminStudio.PUT("/:id", studioController.Update)
-			adminStudio.DELETE("/:id", studioController.Delete)
+			adminStudio.POST("/", ctrl.Studio.Create)
+			adminStudio.PUT("/:id", ctrl.Studio.Update)
+			adminStudio.DELETE("/:id", ctrl.Studio.Delete)
 		}
 	}
 
@@ -84,16 +63,16 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB) {
 	movieRoute := api.Group("/movie")
 	{
 		// Semua user boleh melihat list movie
-		movieRoute.GET("/", movieController.GetAll)
-		movieRoute.GET("/:id", movieController.GetByID)
+		movieRoute.GET("/", ctrl.Movie.GetAll)
+		movieRoute.GET("/:id", ctrl.Movie.GetByID)
 
 		// Admin hanya boleh membuat, mengupdate, menghapus
 		adminMovie := movieRoute.Group("/")
 		adminMovie.Use(middleware.AuthMiddleware(), middleware.RoleMiddleware("admin"))
 		{
-			adminMovie.POST("/", movieController.Create)
-			adminMovie.PUT("/:id", movieController.Update)
-			adminMovie.DELETE("/:id", movieController.Delete)
+			adminMovie.POST("/", ctrl.Movie.Create)
+			adminMovie.PUT("/:id", ctrl.Movie.Update)
+			adminMovie.DELETE("/:id", ctrl.Movie.Delete)
 		}
 	}
 
@@ -102,17 +81,17 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB) {
 	seatRoute.Use(middleware.AuthMiddleware())
 	{
 		// Semua user boleh melihat list seat
-		seatRoute.GET("/", seatController.FindAll)
-		seatRoute.GET("/:id", seatController.FindByID)
-		seatRoute.GET("/studio/:studio_id", seatController.FindByStudioID)
+		seatRoute.GET("/", ctrl.Seat.FindAll)
+		seatRoute.GET("/:id", ctrl.Seat.FindByID)
+		seatRoute.GET("/studio/:studio_id", ctrl.Seat.FindByStudioID)
 
 		// Admin hanya boleh membuat, mengupdate, menghapus
 		adminSeat := seatRoute.Group("/")
 		adminSeat.Use(middleware.RoleMiddleware("admin"))
 		{
-			adminSeat.POST("/", seatController.Create)
-			adminSeat.PUT("/:id", seatController.Update)
-			adminSeat.DELETE("/:id", seatController.Delete)
+			adminSeat.POST("/", ctrl.Seat.Create)
+			adminSeat.PUT("/:id", ctrl.Seat.Update)
+			adminSeat.DELETE("/:id", ctrl.Seat.Delete)
 		}
 	}
 
@@ -121,17 +100,16 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB) {
 	scheduleRoute.Use(middleware.AuthMiddleware())
 	{
 		// Semua user boleh melihat list schedule
-		scheduleRoute.GET("/", scheduleController.FindAll)
-		scheduleRoute.GET("/:id", scheduleController.FindByID)
+		scheduleRoute.GET("/", ctrl.Schedule.FindAll)
+		scheduleRoute.GET("/:id", ctrl.Schedule.FindByID)
 
 		// Admin hanya boleh membuat, mengupdate, menghapus
 		adminSchedule := scheduleRoute.Group("/")
 		adminSchedule.Use(middleware.RoleMiddleware("admin"))
 		{
-			adminSchedule.POST("/", scheduleController.Create)
-			adminSchedule.PUT("/:id", scheduleController.Update)
-			adminSchedule.DELETE("/:id", scheduleController.Delete)
+			adminSchedule.POST("/", ctrl.Schedule.Create)
+			adminSchedule.PUT("/:id", ctrl.Schedule.Update)
+			adminSchedule.DELETE("/:id", ctrl.Schedule.Delete)
 		}
 	}
-
 }

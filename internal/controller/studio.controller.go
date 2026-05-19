@@ -5,27 +5,50 @@ import (
 	"cinema-ticketing-api/internal/request"
 	"cinema-ticketing-api/internal/response"
 	"cinema-ticketing-api/internal/service"
+	"cinema-ticketing-api/pkg/pagination"
 	"errors"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
 )
 
+type StudioController interface {
+	GetAll(c *gin.Context)
+	GetByID(c *gin.Context)
+	Create(c *gin.Context)
+	Update(c *gin.Context)
+	Delete(c *gin.Context)
+}
+
 type studioController struct {
 	studioService service.StudioService
 }
 
-func NewStudioController(studioService service.StudioService) *studioController {
+func NewStudioController(studioService service.StudioService) StudioController {
 	return &studioController{studioService: studioService}
 }
 
 func (sc *studioController) GetAll(c *gin.Context) {
-	studios, err := sc.studioService.FindAll()
+	var req request.PaginationRequest
+	if err := c.ShouldBindQuery(&req); err != nil {
+		c.JSON(http.StatusBadRequest, response.ErrorResponse(err.Error()))
+		return
+	}
+
+	studios, count, err := sc.studioService.FindAll(req)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, response.ErrorResponse(err.Error()))
 		return
 	}
-	c.JSON(http.StatusOK, response.SuccessResponse("Success get studios", studios))
+
+	meta := &response.Meta{
+		Page:      req.Page,
+		PerPage:   req.PerPage,
+		TotalData: int(count),
+		TotalPage: pagination.GetTotalPage(count, req.PerPage),
+	}
+
+	c.JSON(http.StatusOK, response.SuccessResponseWithMeta("Success get studios", studios, meta))
 }
 
 func (sc *studioController) GetByID(c *gin.Context) {

@@ -5,6 +5,7 @@ import (
 	"cinema-ticketing-api/internal/request"
 	"cinema-ticketing-api/internal/response"
 	"cinema-ticketing-api/internal/service"
+	"cinema-ticketing-api/pkg/pagination"
 	"errors"
 	"net/http"
 
@@ -59,12 +60,26 @@ func (m *movieController) Delete(c *gin.Context) {
 
 // GetAll implements [MovieController].
 func (m *movieController) GetAll(c *gin.Context) {
-	movies, err := m.movieService.FindAll()
+	var req request.PaginationRequest
+	if err := c.ShouldBindQuery(&req); err != nil {
+		c.JSON(http.StatusBadRequest, response.ErrorResponse(err.Error()))
+		return
+	}
+
+	movies, count, err := m.movieService.FindAll(req)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, response.ErrorResponse(err.Error()))
 		return
 	}
-	c.JSON(http.StatusOK, response.SuccessResponse("Success get all movie", movies))
+
+	meta := &response.Meta{
+		Page:      req.Page,
+		PerPage:   req.PerPage,
+		TotalData: int(count),
+		TotalPage: pagination.GetTotalPage(count, req.PerPage),
+	}
+
+	c.JSON(http.StatusOK, response.SuccessResponseWithMeta("Success get all movie", movies, meta))
 }
 
 // GetByID implements [MovieController].

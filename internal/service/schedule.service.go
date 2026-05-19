@@ -4,6 +4,7 @@ import (
 	"cinema-ticketing-api/internal/model"
 	"cinema-ticketing-api/internal/repository"
 	"cinema-ticketing-api/internal/request"
+	"cinema-ticketing-api/pkg/utils"
 	"errors"
 	"time"
 
@@ -11,7 +12,7 @@ import (
 )
 
 type ScheduleService interface {
-	FindAll(req request.ScheduleRequest) ([]model.Schedule, error)
+	FindAll(req request.PaginationRequest) ([]model.Schedule, int64, error)
 	FindByID(id uuid.UUID) (model.Schedule, error)
 	Create(req request.CreateSchedule) (model.Schedule, error)
 	Update(id uuid.UUID, req request.UpdateSchedule) (model.Schedule, error)
@@ -25,14 +26,14 @@ type scheduleService struct {
 // Create implements [ScheduleService].
 func (s *scheduleService) Create(req request.CreateSchedule) (model.Schedule, error) {
 
-	startTime, err := time.Parse("2006-01-02T15:04:05Z", req.StartTime)
+	startTime, err := utils.ParseTime(req.StartTime)
 	if err != nil {
-		return model.Schedule{}, err
+		return model.Schedule{}, errors.New("invalid start_time format. use 'YYYY-MM-DD HH:MM'")
 	}
 
-	endTime, err := time.Parse("2006-01-02T15:04:05Z", req.EndTime)
+	endTime, err := utils.ParseTime(req.EndTime)
 	if err != nil {
-		return model.Schedule{}, err
+		return model.Schedule{}, errors.New("invalid end_time format. use 'YYYY-MM-DD HH:MM'")
 	}
 
 	overlap, err := s.scheduleRepo.CheckScheduleOverlap(req.StudioID, startTime, endTime)
@@ -67,8 +68,8 @@ func (s *scheduleService) Delete(id uuid.UUID) error {
 }
 
 // FindAll implements [ScheduleService].
-func (s *scheduleService) FindAll(req request.ScheduleRequest) ([]model.Schedule, error) {
-	return s.scheduleRepo.FindAll()
+func (s *scheduleService) FindAll(req request.PaginationRequest) ([]model.Schedule, int64, error) {
+	return s.scheduleRepo.FindAll(req.Page, req.PerPage)
 }
 
 // FindByID implements [ScheduleService].
@@ -87,16 +88,16 @@ func (s *scheduleService) Update(id uuid.UUID, req request.UpdateSchedule) (mode
 	}
 
 	if req.StartTime != "" {
-		startTime, err := time.Parse("2006-01-02T15:04:05Z", req.StartTime)
+		startTime, err := utils.ParseTime(req.StartTime)
 		if err != nil {
-			return model.Schedule{}, err
+			return model.Schedule{}, errors.New("invalid start_time format. use 'YYYY-MM-DD HH:MM'")
 		}
 		schedule.StartTime = startTime
 	}
 	if req.EndTime != "" {
-		endTime, err := time.Parse("2006-01-02T15:04:05Z", req.EndTime)
+		endTime, err := utils.ParseTime(req.EndTime)
 		if err != nil {
-			return model.Schedule{}, err
+			return model.Schedule{}, errors.New("invalid end_time format. use 'YYYY-MM-DD HH:MM'")
 		}
 		schedule.EndTime = endTime
 	}

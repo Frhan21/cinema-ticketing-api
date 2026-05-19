@@ -3,6 +3,7 @@ package service
 import (
 	"cinema-ticketing-api/internal/model"
 	"cinema-ticketing-api/internal/repository"
+	"cinema-ticketing-api/internal/request"
 	"errors"
 
 	"github.com/google/uuid"
@@ -15,7 +16,7 @@ var (
 )
 
 type StudioService interface {
-	FindAll() ([]model.Studio, error)
+	FindAll(req request.PaginationRequest) ([]model.Studio, int64, error)
 	FindByID(id string) (*model.Studio, error)
 	Create(studio *model.Studio) error
 	Update(studio *model.Studio) error
@@ -43,8 +44,8 @@ func (s *studioService) Delete(id string) error {
 }
 
 // FindAll implements [StudioService].
-func (s *studioService) FindAll() ([]model.Studio, error) {
-	return s.studioRepo.FindAll()
+func (s *studioService) FindAll(req request.PaginationRequest) ([]model.Studio, int64, error) {
+	return s.studioRepo.FindAll(req.Page, req.PerPage)
 }
 
 // FindByID implements [StudioService].

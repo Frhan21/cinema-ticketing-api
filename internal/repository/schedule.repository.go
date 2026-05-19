@@ -2,6 +2,7 @@ package repository
 
 import (
 	"cinema-ticketing-api/internal/model"
+	"cinema-ticketing-api/pkg/pagination"
 	"time"
 
 	"github.com/google/uuid"
@@ -9,7 +10,7 @@ import (
 )
 
 type ScheduleRepository interface {
-	FindAll() ([]model.Schedule, error)
+	FindAll(page, perPage int) ([]model.Schedule, int64, error)
 	FindByID(id uuid.UUID) (model.Schedule, error)
 	Create(schedule *model.Schedule) (model.Schedule, error)
 	Update(schedule *model.Schedule) (model.Schedule, error)
@@ -25,10 +26,17 @@ func NewScheduleRepository(db *gorm.DB) ScheduleRepository {
 	return &scheduleRepository{DB: db}
 }
 
-func (r *scheduleRepository) FindAll() ([]model.Schedule, error) {
+func (r *scheduleRepository) FindAll(page, perPage int) ([]model.Schedule, int64, error) {
 	var schedules []model.Schedule
-	err := r.DB.Preload("Movie").Preload("Studio").Find(&schedules).Error
-	return schedules, err
+	var count int64
+
+	err := r.DB.Model(&model.Schedule{}).Count(&count).Error
+	if err != nil {
+		return nil, 0, err
+	}
+
+	err = r.DB.Preload("Movie").Preload("Studio").Scopes(pagination.Paginate(page, perPage)).Find(&schedules).Error
+	return schedules, count, err
 }
 
 func (r *scheduleRepository) FindByID(id uuid.UUID) (model.Schedule, error) {

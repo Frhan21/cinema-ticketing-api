@@ -3,6 +3,7 @@ package service
 import (
 	"cinema-ticketing-api/internal/model"
 	"cinema-ticketing-api/internal/repository"
+	"cinema-ticketing-api/internal/request"
 	"errors"
 
 	"github.com/google/uuid"
@@ -39,8 +40,8 @@ func (s *seatService) Delete(id string) error {
 }
 
 // FindAll implements [SeatService].
-func (s *seatService) FindAll() ([]model.Seat, error) {
-	return s.seatRepo.FindAll()
+func (s *seatService) FindAll(req request.PaginationRequest) ([]model.Seat, int64, error) {
+	return s.seatRepo.FindAll(req.Page, req.PerPage)
 }
 
 // FindByID implements [SeatService].
@@ -80,7 +81,7 @@ func (s *seatService) Update(seat *model.Seat) error {
 }
 
 type SeatService interface {
-	FindAll() ([]model.Seat, error)
+	FindAll(req request.PaginationRequest) ([]model.Seat, int64, error)
 	FindByID(id string) (*model.Seat, error)
 	FindByStudioID(studioID string) ([]model.Seat, error)
 	Create(seat *model.Seat) error

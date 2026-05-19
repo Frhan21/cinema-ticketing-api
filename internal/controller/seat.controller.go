@@ -5,6 +5,7 @@ import (
 	"cinema-ticketing-api/internal/request"
 	"cinema-ticketing-api/internal/response"
 	"cinema-ticketing-api/internal/service"
+	"cinema-ticketing-api/pkg/pagination"
 	"errors"
 	"net/http"
 
@@ -64,17 +65,30 @@ func (s *seatController) Create(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusCreated, response.SuccessResponse("Seat created successfully", nil))
+	c.JSON(http.StatusCreated, response.SuccessResponse("Seat created successfully", seat))
 }
 
 func (s *seatController) FindAll(c *gin.Context) {
-	seats, err := s.seatService.FindAll()
+	var req request.PaginationRequest
+	if err := c.ShouldBindQuery(&req); err != nil {
+		c.JSON(http.StatusBadRequest, response.ErrorResponse(err.Error()))
+		return
+	}
+
+	seats, count, err := s.seatService.FindAll(req)
 	if err != nil {
 		c.JSON(seatStatusCode(err), response.ErrorResponse(err.Error()))
 		return
 	}
 
-	c.JSON(http.StatusOK, response.SuccessResponse("Seats fetched successfully", seats))
+	meta := &response.Meta{
+		Page:      req.Page,
+		PerPage:   req.PerPage,
+		TotalData: int(count),
+		TotalPage: pagination.GetTotalPage(count, req.PerPage),
+	}
+
+	c.JSON(http.StatusOK, response.SuccessResponseWithMeta("Seats fetched successfully", seats, meta))
 }
 
 func (s *seatController) FindByID(c *gin.Context) {
@@ -139,7 +153,7 @@ func (s *seatController) Update(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, response.SuccessResponse("Seat updated successfully", nil))
+	c.JSON(http.StatusOK, response.SuccessResponse("Seat updated successfully", seat))
 }
 
 func (s *seatController) Delete(c *gin.Context) {

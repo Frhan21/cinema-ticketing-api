@@ -3,6 +3,7 @@ package response
 type Response struct {
 	Message string      `json:"message"`
 	Data    interface{} `json:"data,omitempty"`
+	Meta    *Meta       `json:"meta,omitempty"`
 	Error   string      `json:"error,omitempty"`
 }
 
@@ -17,6 +18,14 @@ func SuccessResponse(message string, data interface{}) Response {
 	return Response{
 		Message: message,
 		Data:    data,
+	}
+}
+
+func SuccessResponseWithMeta(message string, data interface{}, meta *Meta) Response {
+	return Response{
+		Message: message,
+		Data:    data,
+		Meta:    meta,
 	}
 }
 

@@ -3,6 +3,7 @@ package service
 import (
 	"cinema-ticketing-api/internal/model"
 	"cinema-ticketing-api/internal/repository"
+	"cinema-ticketing-api/internal/request"
 	"errors"
 
 	"github.com/google/uuid"
@@ -46,14 +47,14 @@ func (m *movieService) Delete(id string) error {
 }
 
 // FindAll implements [MovieService].
-func (m *movieService) FindAll() ([]model.Movie, error) {
-	movies, err := m.movieRepository.FindAll()
+func (m *movieService) FindAll(req request.PaginationRequest) ([]model.Movie, int64, error) {
+	movies, count, err := m.movieRepository.FindAll(req.Page, req.PerPage)
 
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 
-	return movies, nil
+	return movies, count, nil
 }
 
 // FindByID implements [MovieService].
@@ -84,7 +85,7 @@ type MovieService interface {
 	Create(movie *model.Movie) error
 	Delete(id string) error
 	Update(movie *model.Movie) error
-	FindAll() ([]model.Movie, error)
+	FindAll(req request.PaginationRequest) ([]model.Movie, int64, error)
 	FindByID(id string) (*model.Movie, error)
 }
 

@@ -2,6 +2,7 @@ package repository
 
 import (
 	"cinema-ticketing-api/internal/model"
+	"cinema-ticketing-api/pkg/pagination"
 
 	"github.com/google/uuid"
 	"gorm.io/gorm"
@@ -22,9 +23,17 @@ func (s *seatRepository) Delete(id uuid.UUID) error {
 }
 
 // FindAll implements [SeatRepository].
-func (s *seatRepository) FindAll() ([]model.Seat, error) {
+func (s *seatRepository) FindAll(page, perPage int) ([]model.Seat, int64, error) {
 	var seats []model.Seat
-	return seats, s.db.Preload("Studio").Find(&seats).Error
+	var count int64
+
+	err := s.db.Model(&model.Seat{}).Count(&count).Error
+	if err != nil {
+		return nil, 0, err
+	}
+
+	err = s.db.Model(&model.Seat{}).Preload("Studio").Scopes(pagination.Paginate(page, perPage)).Find(&seats).Error
+	return seats, count, err
 }
 
 // FindByID implements [SeatRepository].
@@ -49,7 +58,7 @@ func (s *seatRepository) Update(seat *model.Seat) error {
 }
 
 type SeatRepository interface {
-	FindAll() ([]model.Seat, error)
+	FindAll(page, perPage int) ([]model.Seat, int64, error)
 	FindByID(id uuid.UUID) (*model.Seat, error)
 	FindByStudioID(studioID uuid.UUID) ([]model.Seat, error)
 	Create(seat *model.Seat) error
