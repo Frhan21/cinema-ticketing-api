@@ -36,6 +36,11 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB) {
 	seatService := service.NewSeatService(seatRepo)
 	seatController := controller.NewSeatController(seatService)
 
+	// Schedule
+	scheduleRepo := repository.NewScheduleRepository(db)
+	scheduleService := service.NewScheduleService(scheduleRepo)
+	scheduleController := controller.NewScheduleController(scheduleService)
+
 	r.GET("/health", func(c *gin.Context) {
 		c.JSON(http.StatusOK, response.SuccessResponse("Cinema Ticketing API is running", nil))
 	})
@@ -110,4 +115,23 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB) {
 			adminSeat.DELETE("/:id", seatController.Delete)
 		}
 	}
+
+	// Schedule
+	scheduleRoute := api.Group("/schedule")
+	scheduleRoute.Use(middleware.AuthMiddleware())
+	{
+		// Semua user boleh melihat list schedule
+		scheduleRoute.GET("/", scheduleController.FindAll)
+		scheduleRoute.GET("/:id", scheduleController.FindByID)
+
+		// Admin hanya boleh membuat, mengupdate, menghapus
+		adminSchedule := scheduleRoute.Group("/")
+		adminSchedule.Use(middleware.RoleMiddleware("admin"))
+		{
+			adminSchedule.POST("/", scheduleController.Create)
+			adminSchedule.PUT("/:id", scheduleController.Update)
+			adminSchedule.DELETE("/:id", scheduleController.Delete)
+		}
+	}
+
 }

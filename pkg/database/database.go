@@ -47,6 +47,7 @@ func Migration(db *gorm.DB) {
 		&model.Studio{},
 		&model.Movie{},
 		&model.Seat{},
+		&model.Schedule{},
 	)
 
 	if err != nil {
