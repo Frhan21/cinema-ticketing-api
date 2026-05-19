@@ -24,13 +24,13 @@ func (s *seatRepository) Delete(id uuid.UUID) error {
 // FindAll implements [SeatRepository].
 func (s *seatRepository) FindAll() ([]model.Seat, error) {
 	var seats []model.Seat
-	return seats, s.db.Table("seats").Find(&seats).Error
+	return seats, s.db.Preload("Studio").Find(&seats).Error
 }
 
 // FindByID implements [SeatRepository].
 func (s *seatRepository) FindByID(id uuid.UUID) (*model.Seat, error) {
 	var seat *model.Seat
-	err := s.db.Table("seats").Where("id = ?", id).First(&seat).Error
+	err := s.db.Preload("Studio").Where("id = ?", id).First(&seat).Error
 	if err != nil {
 		return nil, err
 	}
@@ -40,12 +40,12 @@ func (s *seatRepository) FindByID(id uuid.UUID) (*model.Seat, error) {
 // FindByStudioID implements [SeatRepository].
 func (s *seatRepository) FindByStudioID(studioID uuid.UUID) ([]model.Seat, error) {
 	var seats []model.Seat
-	return seats, s.db.Table("seats").Where("studio_id = ?", studioID).Find(&seats).Error
+	return seats, s.db.Preload("Studio").Where("studio_id = ?", studioID).Find(&seats).Error
 }
 
 // Update implements [SeatRepository].
 func (s *seatRepository) Update(seat *model.Seat) error {
-	return s.db.Table("seats").Where("id = ?", seat.ID).Updates(seat).Error
+	return s.db.Table("seats").Save(seat).Error
 }
 
 type SeatRepository interface {

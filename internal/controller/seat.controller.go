@@ -47,9 +47,15 @@ func (s *seatController) Create(c *gin.Context) {
 		return
 	}
 
+	isAvailable := true
+	if req.IsAvailable != nil {
+		isAvailable = *req.IsAvailable
+	}
+
 	seat := &model.Seat{
-		StudioID:   studioID,
-		SeatNumber: req.SeatNumber,
+		StudioID:    studioID,
+		SeatNumber:  req.SeatNumber,
+		IsAvailable: isAvailable,
 	}
 
 	err = s.seatService.Create(seat)
@@ -121,6 +127,10 @@ func (s *seatController) Update(c *gin.Context) {
 			return
 		}
 		seat.StudioID = studioID
+	}
+
+	if req.IsAvailable != nil {
+		seat.IsAvailable = *req.IsAvailable
 	}
 
 	err = s.seatService.Update(seat)
