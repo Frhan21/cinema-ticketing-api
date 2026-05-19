@@ -7,7 +7,7 @@ import (
 )
 
 type Studio struct {
-	ID         uuid.UUID `json:"id" gorm:"type:char(36);primaryKey"`
+	ID         uuid.UUID `gorm:"type:uuid;primaryKey" json:"id"`
 	Name       string    `json:"name" gorm:"not null"`
 	Capacity   int       `json:"capacity" gorm:"not null"`
 	Facilities string    `json:"facilities" gorm:"not null"`

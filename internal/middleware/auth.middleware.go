@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"cinema-ticketing-api/internal/config"
 	"cinema-ticketing-api/internal/response"
 	"cinema-ticketing-api/pkg/jwt"
 	"net/http"
@@ -9,7 +10,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func AuthMiddleware() gin.HandlerFunc {
+func AuthMiddleware(jwtCfg config.JWTConfig) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		authHeader := c.GetHeader("Authorization")
 
@@ -25,7 +26,7 @@ func AuthMiddleware() gin.HandlerFunc {
 
 		tokenString := strings.TrimPrefix(authHeader, "Bearer ")
 
-		claims, err := jwt.ValidateToken(tokenString)
+		claims, err := jwt.ValidateToken(tokenString, jwtCfg)
 		if err != nil {
 			c.AbortWithStatusJSON(http.StatusUnauthorized, response.ErrorResponse("Invalid or expired token"))
 			return

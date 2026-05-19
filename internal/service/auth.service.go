@@ -1,6 +1,7 @@
 package service
 
 import (
+	"cinema-ticketing-api/internal/config"
 	"cinema-ticketing-api/internal/model"
 	"cinema-ticketing-api/internal/repository"
 	"cinema-ticketing-api/internal/request"
@@ -19,6 +20,7 @@ type AuthService interface {
 
 type authService struct {
 	userRepository repository.UserRepository
+	jwtConfig      config.JWTConfig
 }
 
 // Login implements [AuthService].
@@ -27,38 +29,34 @@ func (a *authService) Login(req request.LoginRequest) (*response.AuthResponse, e
 
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, errors.New("Invalid email or password")
+			return nil, errors.New("invalid email or password")
 		}
 		return nil, err
 	}
 
 	if !password.CheckPasswordHash(req.Password, existingUser.Password) {
-		return nil, errors.New("Invalid email or password")
+		return nil, errors.New("invalid email or password")
 	}
 
-	token, err := jwt.GenerateJwt(existingUser.ID, string(existingUser.Role))
-
+	token, err := jwt.GenerateJwt(existingUser.ID, string(existingUser.Role), a.jwtConfig)
 	if err != nil {
 		return nil, err
 	}
 
-	user := &response.AuthResponse{
+	return &response.AuthResponse{
 		ID:    existingUser.ID.String(),
 		Name:  existingUser.Name,
 		Email: existingUser.Email,
 		Role:  string(existingUser.Role),
 		Token: token,
-	}
-
-	return user, nil
+	}, nil
 }
 
 // Register implements [AuthService].
 func (a *authService) Register(req request.RegisterRequest) (*response.AuthResponse, error) {
-
 	existUser, err := a.userRepository.FindByEmail(req.Email)
 	if err == nil && existUser != nil {
-		return nil, errors.New("Email already exists")
+		return nil, errors.New("email already exists")
 	}
 
 	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
@@ -66,11 +64,10 @@ func (a *authService) Register(req request.RegisterRequest) (*response.AuthRespo
 	}
 
 	if req.Password != req.ConfirmPassword {
-		return nil, errors.New("Password and confirm password do not match")
+		return nil, errors.New("password and confirm password do not match")
 	}
 
-	hashsedPassword, err := password.HashPassword(req.Password)
-
+	hashedPassword, err := password.HashPassword(req.Password)
 	if err != nil {
 		return nil, err
 	}
@@ -78,35 +75,31 @@ func (a *authService) Register(req request.RegisterRequest) (*response.AuthRespo
 	user := model.User{
 		Name:     req.Name,
 		Email:    req.Email,
-		Password: hashsedPassword,
+		Password: hashedPassword,
 		Role:     model.UserRole,
 	}
 
-	err = a.userRepository.Create(&user)
+	if err = a.userRepository.Create(&user); err != nil {
+		return nil, err
+	}
 
+	token, err := jwt.GenerateJwt(user.ID, string(user.Role), a.jwtConfig)
 	if err != nil {
 		return nil, err
 	}
 
-	token, err := jwt.GenerateJwt(user.ID, string(user.Role))
-
-	if err != nil {
-		return nil, err
-	}
-
-	res := &response.AuthResponse{
+	return &response.AuthResponse{
 		ID:    user.ID.String(),
 		Name:  user.Name,
 		Email: user.Email,
 		Role:  string(user.Role),
 		Token: token,
-	}
-
-	return res, nil
+	}, nil
 }
 
-func NewAuthService(userRepo repository.UserRepository) AuthService {
+func NewAuthService(userRepo repository.UserRepository, jwtCfg config.JWTConfig) AuthService {
 	return &authService{
 		userRepository: userRepo,
+		jwtConfig:      jwtCfg,
 	}
 }

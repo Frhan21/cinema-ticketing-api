@@ -1,6 +1,7 @@
 package routes
 
 import (
+	"cinema-ticketing-api/internal/config"
 	"cinema-ticketing-api/internal/controller"
 	"cinema-ticketing-api/internal/middleware"
 	"cinema-ticketing-api/internal/response"
@@ -18,7 +19,7 @@ type RouteControllers struct {
 	Schedule controller.ScheduleController
 }
 
-func SetupRoutes(r *gin.Engine, ctrl *RouteControllers) {
+func SetupRoutes(r *gin.Engine, ctrl *RouteControllers, jwtCfg config.JWTConfig) {
 
 	r.GET("/health", func(c *gin.Context) {
 		c.JSON(http.StatusOK, response.SuccessResponse("Cinema Ticketing API is running", nil))
@@ -38,7 +39,7 @@ func SetupRoutes(r *gin.Engine, ctrl *RouteControllers) {
 
 	// Get data profile user dan Update Profile
 	userRoute := api.Group("/user")
-	userRoute.Use(middleware.AuthMiddleware())
+	userRoute.Use(middleware.AuthMiddleware(jwtCfg))
 	{
 		userRoute.GET("/profile", ctrl.User.GetProfile)
 		userRoute.PUT("/profile/", ctrl.User.UpdateProfile)
@@ -46,7 +47,7 @@ func SetupRoutes(r *gin.Engine, ctrl *RouteControllers) {
 
 	// Studio
 	studioRoute := api.Group("/studio")
-	studioRoute.Use(middleware.AuthMiddleware())
+	studioRoute.Use(middleware.AuthMiddleware(jwtCfg))
 	{
 		// Semua user boleh melihat list studio
 		studioRoute.GET("/", ctrl.Studio.GetAll)
@@ -71,7 +72,7 @@ func SetupRoutes(r *gin.Engine, ctrl *RouteControllers) {
 
 		// Admin hanya boleh membuat, mengupdate, menghapus
 		adminMovie := movieRoute.Group("/")
-		adminMovie.Use(middleware.AuthMiddleware(), middleware.RoleMiddleware("admin"))
+		adminMovie.Use(middleware.AuthMiddleware(jwtCfg), middleware.RoleMiddleware("admin"))
 		{
 			adminMovie.POST("/", ctrl.Movie.Create)
 			adminMovie.PUT("/:id", ctrl.Movie.Update)
@@ -81,7 +82,7 @@ func SetupRoutes(r *gin.Engine, ctrl *RouteControllers) {
 
 	// Seat
 	seatRoute := api.Group("/seat")
-	seatRoute.Use(middleware.AuthMiddleware())
+	seatRoute.Use(middleware.AuthMiddleware(jwtCfg))
 	{
 		// Semua user boleh melihat list seat
 		seatRoute.GET("/", ctrl.Seat.FindAll)
@@ -100,7 +101,7 @@ func SetupRoutes(r *gin.Engine, ctrl *RouteControllers) {
 
 	// Schedule
 	scheduleRoute := api.Group("/schedule")
-	scheduleRoute.Use(middleware.AuthMiddleware())
+	scheduleRoute.Use(middleware.AuthMiddleware(jwtCfg))
 	{
 		// Semua user boleh melihat list schedule
 		scheduleRoute.GET("/", ctrl.Schedule.FindAll)

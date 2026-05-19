@@ -7,8 +7,8 @@ import (
 )
 
 type Seat struct {
-	ID          uuid.UUID `json:"id" gorm:"type:varchar(36);primaryKey"`
-	StudioID    uuid.UUID `json:"studio_id" gorm:"type:varchar(36);not null"`
+	ID          uuid.UUID `json:"id" gorm:"type:uuid;primaryKey"`
+	StudioID    uuid.UUID `json:"studio_id" gorm:"type:uuid;not null"`
 	SeatNumber  string    `json:"seat_number" gorm:"type:varchar(100);not null"`
 	IsAvailable bool      `json:"is_available" gorm:"type:boolean;default:true"`
 	CreatedAt   time.Time `json:"created_at" gorm:"autoCreateTime"`

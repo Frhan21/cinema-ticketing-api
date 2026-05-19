@@ -6,51 +6,69 @@ import (
 	"fmt"
 	"log"
 
-	"gorm.io/driver/mysql"
+	"github.com/golang-migrate/migrate/v4"
+	_ "github.com/golang-migrate/migrate/v4/database/postgres"
+	_ "github.com/golang-migrate/migrate/v4/source/file"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 )
 
-func ConnectDB() *gorm.DB {
-	var errDb error
-	var db *gorm.DB
-	driver := config.GetEnv("DB_DRIVER", "mysql")
+func ConnectDB(cfg config.DBConfig) *gorm.DB {
+	dsn := fmt.Sprintf(
+		"host=%s user=%s password=%s dbname=%s port=%s sslmode=require TimeZone=Asia/Jakarta",
+		cfg.Host, cfg.User, cfg.Password, cfg.Name, cfg.Port,
+	)
 
-	switch driver {
-	case "mysql":
-		dsn := fmt.Sprintf("%s:%s@tcp(%s:%s)/%s?charset=utf8mb4&parseTime=True&loc=Local", config.GetEnv("DB_USER", "root"), config.GetEnv("DB_PASSWORD", ""), config.GetEnv("DB_HOST", "127.0.0.1"), config.GetEnv("DB_PORT", "3306"), config.GetEnv("DB_NAME", "go_gin"))
-		db, errDb = gorm.Open(mysql.Open(dsn), &gorm.Config{})
-
-	case "postgres":
-		dsn := fmt.Sprintf("host=%s user=%s password=%s dbname=%s port=%s sslmode=disable TimeZone=Asia/Jakarta", config.GetEnv("DB_HOST", "127.0.0.1"), config.GetEnv("DB_USER", "root"), config.GetEnv("DB_PASSWORD", ""), config.GetEnv("DB_NAME", "go_gin"), config.GetEnv("DB_PORT", "5432"))
-		db, errDb = gorm.Open(postgres.Open(dsn), &gorm.Config{})
-	default:
-		panic(fmt.Sprintf("Unsupported DB_DRIVER: %s", driver))
+	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
+	if err != nil {
+		panic(fmt.Sprintf("Can't connect to database: %v", err))
 	}
 
-	if errDb != nil {
-		panic(fmt.Sprintf("Can't connect to database: %v", errDb))
+	sqlDB, err := db.DB()
+	if err != nil {
+		panic(fmt.Sprintf("Failed to get sql.DB: %v", err))
+	}
+	if err = sqlDB.Ping(); err != nil {
+		panic(fmt.Sprintf("Database ping failed: %v", err))
 	}
 
-	sqlDB, errDb := db.DB()
-	if errDb = sqlDB.Ping(); errDb != nil {
-		panic(fmt.Sprintf("Database ping failed: %v", errDb))
-	}
+	runMigration(cfg)
 
 	log.Println("Successfully connected to the database")
 	return db
 }
 
-func Migration(db *gorm.DB) {
+func runMigration(cfg config.DBConfig) {
+	databaseURL := fmt.Sprintf(
+		"postgres://%s:%s@%s:%s/%s?sslmode=require",
+		cfg.User, cfg.Password, cfg.Host, cfg.Port, cfg.Name,
+	)
+
+	m, err := migrate.New("file://./database/migrations", databaseURL)
+	if err != nil {
+		log.Fatal("Migration initialization failed:", err)
+	}
+
+	if err := m.Up(); err != nil && err != migrate.ErrNoChange {
+		log.Fatal("Migration failed:", err)
+	}
+
+	log.Println("Database migration executed successfully")
+}
+
+func AutoMigration(db *gorm.DB) {
 	err := db.AutoMigrate(
 		&model.User{},
 		&model.Studio{},
 		&model.Movie{},
 		&model.Seat{},
 		&model.Schedule{},
+		&model.Ticket{},
+		&model.Transaction{},
+		&model.TransactionItem{},
 	)
 
 	if err != nil {
-		log.Println("Error Migration : ", err)
+		log.Println("Error AutoMigration:", err)
 	}
 }

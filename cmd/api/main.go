@@ -15,13 +15,13 @@ import (
 
 func main() {
 	// Load Konfigurasi dari .env
-	config.LoadEnv()
+	cfg := config.Load()
 
-	// Konek ke DB
-	db := database.ConnectDB()
-	// Auto migrasi db
-	database.Migration(db)
-	if err := database.SeedAdmin(db); err != nil {
+	// Konek ke DB (termasuk auto-migration)
+	db := database.ConnectDB(cfg.DB)
+
+	// Seed admin dari konfigurasi
+	if err := database.SeedAdmin(db, cfg.Admin); err != nil {
 		log.Fatalf("failed to seed admin: %v", err)
 	}
 
@@ -33,7 +33,7 @@ func main() {
 	scheduleRepo := repository.NewScheduleRepository(db)
 
 	// Inisialisasi Services
-	authService := service.NewAuthService(userRepo)
+	authService := service.NewAuthService(userRepo, cfg.JWT)
 	userService := service.NewUserService(userRepo)
 	studioService := service.NewStudioService(studioRepo)
 	movieService := service.NewMovieService(movieRepo)
@@ -61,11 +61,9 @@ func main() {
 		Movie:    movieController,
 		Seat:     seatController,
 		Schedule: scheduleController,
-	})
-
-	// Init Port
-	port := config.GetEnv("APP_PORT", ":8080")
+	}, cfg.JWT)
 
 	// Jalankan server
-	r.Run(port)
+	log.Printf("Server running on port %s", cfg.App.Port)
+	r.Run(cfg.App.Port)
 }

@@ -12,9 +12,9 @@ import (
 	"gorm.io/gorm"
 )
 
-func SeedAdmin(db *gorm.DB) error {
-	adminEmail := strings.TrimSpace(config.GetEnv("ADMIN_EMAIL", ""))
-	adminPassword := config.GetEnv("ADMIN_PASSWORD", "")
+func SeedAdmin(db *gorm.DB, cfg config.AdminConfig) error {
+	adminEmail := strings.TrimSpace(cfg.Email)
+	adminPassword := cfg.Password
 
 	if adminEmail == "" && adminPassword == "" {
 		log.Println("Admin seeding skipped: ADMIN_EMAIL and ADMIN_PASSWORD are not set")
@@ -25,7 +25,7 @@ func SeedAdmin(db *gorm.DB) error {
 		return errors.New("admin seeding requires both ADMIN_EMAIL and ADMIN_PASSWORD")
 	}
 
-	adminName := strings.TrimSpace(config.GetEnv("ADMIN_NAME", "Administrator"))
+	adminName := strings.TrimSpace(cfg.Name)
 	if adminName == "" {
 		adminName = "Administrator"
 	}

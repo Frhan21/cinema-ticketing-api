@@ -7,7 +7,7 @@ import (
 )
 
 type Movie struct {
-	ID          uuid.UUID `json:"id" gorm:"type:char(36);primaryKey"`
+	ID          uuid.UUID `gorm:"type:uuid;primaryKey" json:"id"`
 	Title       string    `json:"name" gorm:"not null"`
 	Genre       string    `json:"genre" gorm:"not null"`
 	Description string    `json:"description"`
