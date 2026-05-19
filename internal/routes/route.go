@@ -26,6 +26,9 @@ func SetupRoutes(r *gin.Engine, ctrl *RouteControllers) {
 
 	api := r.Group("/api/v1")
 
+	// Test Send Email
+	r.POST("/api/v1/test-email", controller.TestSendEmail)
+
 	// Authentication
 	authRoute := api.Group("/auth")
 	{
