@@ -7,6 +7,9 @@ import (
 	"cinema-ticketing-api/internal/response"
 	"net/http"
 
+	swaggerFiles "github.com/swaggo/files"
+	ginSwagger "github.com/swaggo/gin-swagger"
+
 	"github.com/gin-gonic/gin"
 )
 
@@ -28,6 +31,9 @@ func SetupRoutes(r *gin.Engine, ctrl *RouteControllers, jwtCfg config.JWTConfig)
 	r.GET("/health", func(c *gin.Context) {
 		c.JSON(http.StatusOK, response.SuccessResponse("Cinema Ticketing API is running", nil))
 	})
+
+	// Swagger UI — accessible at /swagger/index.html
+	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 
 	api := r.Group("/api/v1")
 

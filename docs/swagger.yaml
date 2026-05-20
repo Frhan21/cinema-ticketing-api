@@ -1,0 +1,655 @@
+basePath: /api/v1
+definitions:
+  request.BookTicketRequest:
+    properties:
+      promo_code:
+        description: opsional
+        type: string
+      schedule_id:
+        type: string
+      seat_id:
+        items:
+          type: string
+        type: array
+    required:
+    - schedule_id
+    - seat_id
+    type: object
+  request.CreatePromoRequest:
+    properties:
+      code:
+        maxLength: 50
+        minLength: 3
+        type: string
+      description:
+        type: string
+      discount:
+        maximum: 100
+        minimum: 1
+        type: number
+      end_date:
+        type: string
+      max_usage:
+        type: integer
+      start_date:
+        type: string
+    required:
+    - code
+    - discount
+    - end_date
+    - start_date
+    type: object
+  request.LoginRequest:
+    properties:
+      email:
+        type: string
+      password:
+        type: string
+    required:
+    - email
+    - password
+    type: object
+  request.PayTransactionRequest:
+    properties:
+      payment_method:
+        enum:
+        - credit_card
+        - e_wallet
+        - bank_transfer
+        type: string
+    required:
+    - payment_method
+    type: object
+  request.RegisterRequest:
+    properties:
+      confirm_password:
+        type: string
+      email:
+        type: string
+      name:
+        type: string
+      password:
+        minLength: 6
+        type: string
+    required:
+    - confirm_password
+    - email
+    - name
+    - password
+    type: object
+  request.UpdatePromoRequest:
+    properties:
+      description:
+        type: string
+      discount:
+        maximum: 100
+        minimum: 1
+        type: number
+      end_date:
+        type: string
+      is_active:
+        type: boolean
+      max_usage:
+        type: integer
+      start_date:
+        type: string
+    type: object
+host: localhost:8080
+info:
+  contact:
+    email: support@cinemticket.com
+    name: Cinema Ticketing Support
+  description: REST API untuk sistem manajemen tiket bioskop. Mendukung manajemen
+    studio, film, jadwal tayang, kursi, booking tiket, transaksi, promo diskon, dan
+    laporan penjualan.
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+  termsOfService: http://swagger.io/terms/
+  title: Cinema Ticketing API
+  version: "1.0"
+paths:
+  /auth/login:
+    post:
+      consumes:
+      - application/json
+      description: Autentikasi user dan mendapatkan JWT token.
+      parameters:
+      - description: Kredensial login
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/request.LoginRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Login berhasil, token tersedia
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Request tidak valid
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Email atau password salah
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Login user
+      tags:
+      - Auth
+  /auth/register:
+    post:
+      consumes:
+      - application/json
+      description: Membuat akun pengguna baru dengan role 'user'.
+      parameters:
+      - description: Data registrasi
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/request.RegisterRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: User berhasil didaftarkan
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Request tidak valid
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Register user baru
+      tags:
+      - Auth
+  /promo:
+    get:
+      description: Admin dapat melihat semua kode promo yang tersedia.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: List semua promo
+      tags:
+      - Promo
+    post:
+      consumes:
+      - application/json
+      description: Admin dapat membuat kode promo diskon dengan persentase tertentu
+        dan periode berlaku.
+      parameters:
+      - description: Data promo
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/request.CreatePromoRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Buat promo baru
+      tags:
+      - Promo
+  /promo/{id}:
+    delete:
+      description: Admin dapat menghapus kode promo yang sudah tidak digunakan.
+      parameters:
+      - description: Promo ID (UUID)
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Hapus promo
+      tags:
+      - Promo
+    get:
+      description: Mengambil detail satu kode promo berdasarkan ID-nya.
+      parameters:
+      - description: Promo ID (UUID)
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Detail promo
+      tags:
+      - Promo
+    put:
+      consumes:
+      - application/json
+      description: Admin dapat memperbarui data promo yang sudah ada.
+      parameters:
+      - description: Promo ID (UUID)
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Data promo yang diperbarui
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/request.UpdatePromoRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Update promo
+      tags:
+      - Promo
+  /promo/validate/{code}:
+    get:
+      description: User dapat mengecek apakah kode promo valid dan melihat preview
+        harga setelah diskon sebelum melakukan booking.
+      parameters:
+      - description: Kode promo
+        in: path
+        name: code
+        required: true
+        type: string
+      - description: Harga total sebelum diskon
+        in: query
+        name: total_price
+        required: true
+        type: number
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Validasi kode promo
+      tags:
+      - Promo
+  /report/daily:
+    get:
+      description: Admin dapat melihat laporan penjualan tiket pada tanggal tertentu,
+        termasuk total tiket, total pendapatan, dan breakdown per film dan studio.
+      parameters:
+      - description: 'Tanggal laporan (format: YYYY-MM-DD). Default: hari ini'
+        example: "2026-05-20"
+        in: query
+        name: date
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Laporan penjualan harian
+      tags:
+      - Report
+  /report/monthly:
+    get:
+      description: Admin dapat melihat laporan penjualan tiket selama satu bulan penuh,
+        termasuk breakdown harian, per film, dan per studio.
+      parameters:
+      - description: 'Tahun laporan (format: YYYY). Default: tahun ini'
+        example: "2026"
+        in: query
+        name: year
+        type: string
+      - description: 'Bulan laporan (1-12). Default: bulan ini'
+        example: "5"
+        in: query
+        name: month
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Laporan penjualan bulanan
+      tags:
+      - Report
+  /ticket:
+    post:
+      consumes:
+      - application/json
+      description: Memesan satu atau lebih kursi untuk jadwal film tertentu. Bisa
+        menyertakan kode promo opsional untuk mendapatkan diskon. Tiket dibuat dengan
+        status 'pending' dan akan otomatis dibatalkan jika tidak dibayar dalam 15
+        menit.
+      parameters:
+      - description: Detail booking tiket
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/request.BookTicketRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Booking tiket
+      tags:
+      - Ticket
+  /ticket/available-seats/{schedule_id}:
+    get:
+      description: Menampilkan daftar kursi yang belum dipesan untuk jadwal film tertentu.
+      parameters:
+      - description: Schedule ID (UUID)
+        in: path
+        name: schedule_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Kursi tersedia
+      tags:
+      - Ticket
+  /ticket/history:
+    get:
+      description: Menampilkan semua riwayat pembelian tiket milik user yang sedang
+        login.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Riwayat transaksi user
+      tags:
+      - Ticket
+  /transaction:
+    get:
+      description: Mengembalikan seluruh data transaksi. Hanya bisa diakses oleh admin.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Lihat semua transaksi
+      tags:
+      - Transaction
+  /transaction/{transaction_id}:
+    get:
+      description: Mengembalikan detail satu transaksi berdasarkan ID-nya.
+      parameters:
+      - description: Transaction ID (UUID)
+        in: path
+        name: transaction_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Detail transaksi
+      tags:
+      - Transaction
+  /transaction/{transaction_id}/cancel:
+    post:
+      description: Membatalkan transaksi yang masih berstatus pending. Semua tiket
+        terkait juga ikut dibatalkan dan email notifikasi dikirim ke user.
+      parameters:
+      - description: Transaction ID (UUID)
+        in: path
+        name: transaction_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Batalkan transaksi
+      tags:
+      - Transaction
+  /transaction/{transaction_id}/pay:
+    post:
+      consumes:
+      - application/json
+      description: Melakukan pembayaran untuk transaksi yang masih berstatus pending.
+        Tiket berubah menjadi 'paid' dan email konfirmasi dikirim.
+      parameters:
+      - description: Transaction ID (UUID)
+        in: path
+        name: transaction_id
+        required: true
+        type: string
+      - description: Metode pembayaran
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/request.PayTransactionRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Bayar transaksi
+      tags:
+      - Transaction
+securityDefinitions:
+  BearerAuth:
+    description: 'Masukkan token dengan format: Bearer {token}'
+    in: header
+    name: Authorization
+    type: apiKey
+swagger: "2.0"

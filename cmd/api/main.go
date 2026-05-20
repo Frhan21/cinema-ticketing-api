@@ -1,3 +1,23 @@
+// Package main adalah entry point dari Cinema Ticketing API.
+//
+// @title           Cinema Ticketing API
+// @version         1.0
+// @description     REST API untuk sistem manajemen tiket bioskop. Mendukung manajemen studio, film, jadwal tayang, kursi, booking tiket, transaksi, promo diskon, dan laporan penjualan.
+// @termsOfService  http://swagger.io/terms/
+//
+// @contact.name    Cinema Ticketing Support
+// @contact.email   support@cinemticket.com
+//
+// @license.name  MIT
+// @license.url   https://opensource.org/licenses/MIT
+//
+// @host      localhost:8080
+// @BasePath  /api/v1
+//
+// @securityDefinitions.apikey BearerAuth
+// @in header
+// @name Authorization
+// @description Masukkan token dengan format: Bearer {token}
 package main
 
 import (
@@ -11,6 +31,8 @@ import (
 	"cinema-ticketing-api/pkg/mailer"
 	"cinema-ticketing-api/pkg/scheduler"
 	"log"
+
+	_ "cinema-ticketing-api/docs"
 
 	"github.com/gin-gonic/gin"
 )
@@ -91,5 +113,6 @@ func main() {
 
 	// Jalankan server
 	log.Printf("Server running on port %s", cfg.App.Port)
+	log.Printf("Swagger UI: http://localhost%s/swagger/index.html", cfg.App.Port)
 	r.Run(cfg.App.Port)
 }

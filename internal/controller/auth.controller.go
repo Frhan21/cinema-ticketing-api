@@ -14,44 +14,58 @@ type AuthController struct {
 }
 
 func NewAuthController(authService service.AuthService) *AuthController {
-	return &AuthController{
-		authService: authService,
-	}
+	return &AuthController{authService: authService}
 }
 
-func (ac *AuthController) Register(c *gin.Context) {
+// Register godoc
+// @Summary      Register user baru
+// @Description  Membuat akun pengguna baru dengan role 'user'.
+// @Tags         Auth
+// @Accept       json
+// @Produce      json
+// @Param        body body request.RegisterRequest true "Data registrasi"
+// @Success      201  {object}  map[string]interface{}  "User berhasil didaftarkan"
+// @Failure      400  {object}  map[string]interface{}  "Request tidak valid"
+// @Router       /auth/register [post]
+func (a *AuthController) Register(c *gin.Context) {
 	var req request.RegisterRequest
-
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusInternalServerError, response.ErrorResponse(err.Error()))
+		c.JSON(http.StatusBadRequest, response.ErrorResponse(err.Error()))
 		return
 	}
 
-	res, err := ac.authService.Register(req)
-
+	result, err := a.authService.Register(req)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, response.ErrorResponse(err.Error()))
+		c.JSON(http.StatusBadRequest, response.ErrorResponse(err.Error()))
 		return
 	}
 
-	c.JSON(http.StatusOK, response.SuccessResponse("You've been Registered", res))
+	c.JSON(http.StatusCreated, response.SuccessResponse("User registered successfully", result))
 }
 
-func (ac *AuthController) Login(c *gin.Context) {
+// Login godoc
+// @Summary      Login user
+// @Description  Autentikasi user dan mendapatkan JWT token.
+// @Tags         Auth
+// @Accept       json
+// @Produce      json
+// @Param        body body request.LoginRequest true "Kredensial login"
+// @Success      200  {object}  map[string]interface{}  "Login berhasil, token tersedia"
+// @Failure      400  {object}  map[string]interface{}  "Request tidak valid"
+// @Failure      401  {object}  map[string]interface{}  "Email atau password salah"
+// @Router       /auth/login [post]
+func (a *AuthController) Login(c *gin.Context) {
 	var req request.LoginRequest
-
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusInternalServerError, response.ErrorResponse(err.Error()))
+		c.JSON(http.StatusBadRequest, response.ErrorResponse(err.Error()))
 		return
 	}
 
-	res, err := ac.authService.Login(req)
-
+	result, err := a.authService.Login(req)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, response.ErrorResponse(err.Error()))
+		c.JSON(http.StatusUnauthorized, response.ErrorResponse(err.Error()))
 		return
 	}
 
-	c.JSON(http.StatusOK, response.SuccessResponse("You've been Logged In", res))
-
+	c.JSON(http.StatusOK, response.SuccessResponse("Login successful", result))
 }

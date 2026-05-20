@@ -23,49 +23,51 @@ func NewReportController(reportService service.ReportService) ReportController {
 }
 
 // GetDailyReport godoc
-// @Summary      Laporan Penjualan Harian
-// @Description  Mengembalikan laporan penjualan tiket pada tanggal tertentu (admin only).
-// @Tags         report
+// @Summary      Laporan penjualan harian
+// @Description  Admin dapat melihat laporan penjualan tiket pada tanggal tertentu, termasuk total tiket, total pendapatan, dan breakdown per film dan studio.
+// @Tags         Report
 // @Produce      json
-// @Param        date query string false "Tanggal (YYYY-MM-DD), default: hari ini"
-// @Success      200  {object} response.DailyReportResponse
+// @Security     BearerAuth
+// @Param        date  query  string  false  "Tanggal laporan (format: YYYY-MM-DD). Default: hari ini"  example(2026-05-20)
+// @Success      200   {object}  map[string]interface{}
+// @Failure      400   {object}  map[string]interface{}
+// @Failure      401   {object}  map[string]interface{}
+// @Failure      403   {object}  map[string]interface{}
 // @Router       /report/daily [get]
 func (r *reportController) GetDailyReport(c *gin.Context) {
 	date := c.Query("date")
 	if date == "" {
-		// Default ke hari ini (WIB)
 		date = time.Now().In(time.FixedZone("WIB", 7*3600)).Format("2006-01-02")
 	}
-
 	report, err := r.reportService.GetDailyReport(date)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, response.ErrorResponse(err.Error()))
 		return
 	}
-
 	c.JSON(http.StatusOK, response.SuccessResponse("Daily report retrieved successfully", report))
 }
 
 // GetMonthlyReport godoc
-// @Summary      Laporan Penjualan Bulanan
-// @Description  Mengembalikan laporan penjualan tiket pada bulan tertentu (admin only).
-// @Tags         report
+// @Summary      Laporan penjualan bulanan
+// @Description  Admin dapat melihat laporan penjualan tiket selama satu bulan penuh, termasuk breakdown harian, per film, dan per studio.
+// @Tags         Report
 // @Produce      json
-// @Param        year  query string false "Tahun (YYYY), default: tahun ini"
-// @Param        month query string false "Bulan (1-12), default: bulan ini"
-// @Success      200  {object} response.MonthlyReportResponse
+// @Security     BearerAuth
+// @Param        year   query  string  false  "Tahun laporan (format: YYYY). Default: tahun ini"   example(2026)
+// @Param        month  query  string  false  "Bulan laporan (1-12). Default: bulan ini"           example(5)
+// @Success      200    {object}  map[string]interface{}
+// @Failure      400    {object}  map[string]interface{}
+// @Failure      401    {object}  map[string]interface{}
+// @Failure      403    {object}  map[string]interface{}
 // @Router       /report/monthly [get]
 func (r *reportController) GetMonthlyReport(c *gin.Context) {
 	now := time.Now().In(time.FixedZone("WIB", 7*3600))
-
 	year := c.DefaultQuery("year", now.Format("2006"))
 	month := c.DefaultQuery("month", now.Format("1"))
-
 	report, err := r.reportService.GetMonthlyReport(year, month)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, response.ErrorResponse(err.Error()))
 		return
 	}
-
 	c.JSON(http.StatusOK, response.SuccessResponse("Monthly report retrieved successfully", report))
 }

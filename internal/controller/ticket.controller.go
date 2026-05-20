@@ -5,6 +5,7 @@ import (
 	"cinema-ticketing-api/internal/response"
 	"cinema-ticketing-api/internal/service"
 	"net/http"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -25,16 +26,17 @@ func NewTicketController(ticketService service.TicketService) TicketController {
 }
 
 // BookTicket godoc
-// @Summary      Book Ticket
-// @Description  Membooking kursi untuk jadwal tertentu. Satu request bisa booking beberapa kursi sekaligus.
-// @Tags         ticket
+// @Summary      Booking tiket
+// @Description  Memesan satu atau lebih kursi untuk jadwal film tertentu. Bisa menyertakan kode promo opsional untuk mendapatkan diskon. Tiket dibuat dengan status 'pending' dan akan otomatis dibatalkan jika tidak dibayar dalam 15 menit.
+// @Tags         Ticket
 // @Accept       json
 // @Produce      json
-// @Param        request body request.BookTicketRequest true "Booking details"
-// @Success      201  {object} response.TicketResponse
-// @Failure      400  {object} map[string]interface{}
-// @Failure      401  {object} map[string]interface{}
-// @Router       /tickets [post]
+// @Security     BearerAuth
+// @Param        body  body  request.BookTicketRequest  true  "Detail booking tiket"
+// @Success      201   {object}  map[string]interface{}
+// @Failure      400   {object}  map[string]interface{}
+// @Failure      401   {object}  map[string]interface{}
+// @Router       /ticket [post]
 func (t *ticketController) BookTicket(c *gin.Context) {
 	var req request.BookTicketRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -42,20 +44,16 @@ func (t *ticketController) BookTicket(c *gin.Context) {
 		return
 	}
 
-	// Ambil user_id yang di-set oleh AuthMiddleware
 	userIDRaw, exists := c.Get("user_id")
 	if !exists {
 		c.JSON(http.StatusUnauthorized, response.ErrorResponse("Unauthorized"))
 		return
 	}
-
-	// user_id disimpan sebagai string di context (dari JWT claims)
 	userIDStr, ok := userIDRaw.(string)
 	if !ok {
 		c.JSON(http.StatusUnauthorized, response.ErrorResponse("Invalid user ID format"))
 		return
 	}
-
 	userID, err := uuid.Parse(userIDStr)
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, response.ErrorResponse("Invalid user ID"))
@@ -72,15 +70,15 @@ func (t *ticketController) BookTicket(c *gin.Context) {
 }
 
 // GetAvailableSeats godoc
-// @Summary      Get Available Seats
-// @Description  Menampilkan daftar kursi yang masih tersedia untuk jadwal tertentu.
-// @Tags         ticket
-// @Accept       json
+// @Summary      Kursi tersedia
+// @Description  Menampilkan daftar kursi yang belum dipesan untuk jadwal film tertentu.
+// @Tags         Ticket
 // @Produce      json
-// @Param        schedule_id path string true "Schedule ID"
-// @Success      200  {object} []response.SeatAvailabilityResponse
-// @Failure      400  {object} map[string]interface{}
-// @Router       /tickets/available-seats/:schedule_id [get]
+// @Security     BearerAuth
+// @Param        schedule_id  path  string  true  "Schedule ID (UUID)"
+// @Success      200  {object}  map[string]interface{}
+// @Failure      400  {object}  map[string]interface{}
+// @Router       /ticket/available-seats/{schedule_id} [get]
 func (t *ticketController) GetAvailableSeats(c *gin.Context) {
 	scheduleID, err := uuid.Parse(c.Param("schedule_id"))
 	if err != nil {
@@ -97,19 +95,26 @@ func (t *ticketController) GetAvailableSeats(c *gin.Context) {
 	c.JSON(http.StatusOK, response.SuccessResponse("Available seats retrieved successfully", availableSeats))
 }
 
+// GetUserHistory godoc
+// @Summary      Riwayat transaksi user
+// @Description  Menampilkan semua riwayat pembelian tiket milik user yang sedang login.
+// @Tags         Ticket
+// @Produce      json
+// @Security     BearerAuth
+// @Success      200  {object}  map[string]interface{}
+// @Failure      401  {object}  map[string]interface{}
+// @Router       /ticket/history [get]
 func (t *ticketController) GetUserHistory(c *gin.Context) {
 	userIDRaw, exists := c.Get("user_id")
 	if !exists {
 		c.JSON(http.StatusUnauthorized, response.ErrorResponse("Unauthorized"))
 		return
 	}
-
 	userIDStr, ok := userIDRaw.(string)
 	if !ok {
 		c.JSON(http.StatusUnauthorized, response.ErrorResponse("Invalid user ID format"))
 		return
 	}
-
 	userID, err := uuid.Parse(userIDStr)
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, response.ErrorResponse("Invalid user ID"))
@@ -123,4 +128,10 @@ func (t *ticketController) GetUserHistory(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, response.SuccessResponse("User history retrieved successfully", history))
+}
+
+// getUserIDFromContextTicket digunakan internal — alias getUserIDFromContext di ticket controller.
+func getUserIDFromContextTicket(c *gin.Context) (uuid.UUID, bool) {
+	_ = time.Now() // import guard
+	return getUserIDFromContext(c)
 }
