@@ -1,6 +1,7 @@
 package service
 
 import (
+	"cinema-ticketing-api/internal/enums"
 	"cinema-ticketing-api/internal/model"
 	"cinema-ticketing-api/internal/repository"
 	"cinema-ticketing-api/internal/request"
@@ -22,6 +23,7 @@ type ticketService struct {
 	transactionRepo     repository.TransactionRepository
 	transactionItemRepo repository.TransactionItemRepository
 	scheduleRepo        repository.ScheduleRepository
+	promoRepo           repository.PromoRepository
 }
 
 func NewTicketService(
@@ -30,6 +32,7 @@ func NewTicketService(
 	transactionRepo repository.TransactionRepository,
 	transactionItemRepo repository.TransactionItemRepository,
 	scheduleRepo repository.ScheduleRepository,
+	promoRepo repository.PromoRepository,
 ) TicketService {
 	return &ticketService{
 		ticketRepo:          ticketRepo,
@@ -37,6 +40,7 @@ func NewTicketService(
 		transactionRepo:     transactionRepo,
 		transactionItemRepo: transactionItemRepo,
 		scheduleRepo:        scheduleRepo,
+		promoRepo:           promoRepo,
 	}
 }
 
@@ -129,7 +133,7 @@ func (s *ticketService) BookTicket(userID uuid.UUID, req *request.BookTicketRequ
 			ScheduleId: req.ScheduleId,
 			SeatId:     seatID,
 			Price:      schedule.Price,
-			Status:     "pending",
+			Status:     enums.TicketStatusPending,
 		})
 	}
 
@@ -137,8 +141,29 @@ func (s *ticketService) BookTicket(userID uuid.UUID, req *request.BookTicketRequ
 		return nil, errors.New("failed to create tickets: " + err.Error())
 	}
 
-	// 4. Buat Transaction
+	// 3a. Terapkan promo jika ada kode yang diberikan
 	totalPrice := schedule.Price * float64(len(req.SeatIds))
+	var promoID *uuid.UUID
+	if req.PromoCode != "" {
+		promo, err := s.promoRepo.FindByCode(req.PromoCode)
+		if err != nil {
+			return nil, errors.New("promo code not found")
+		}
+		if !promo.IsActive {
+			return nil, errors.New("promo is not active")
+		}
+		if promo.MaxUsage > 0 && promo.UsedCount >= promo.MaxUsage {
+			return nil, errors.New("promo usage limit reached")
+		}
+		discount := totalPrice * (promo.Discount / 100)
+		totalPrice -= discount
+		promoID = &promo.ID
+		// Increment usage count
+		_ = s.promoRepo.IncrementUsage(promo.ID)
+	}
+	_ = promoID // reserved untuk future use (relasi transaksi ke promo)
+
+	// 4. Buat Transaction
 	transaction := model.Transaction{
 		ID:            uuid.New(),
 		UserID:        userID,

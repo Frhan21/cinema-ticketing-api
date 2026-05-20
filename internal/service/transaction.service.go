@@ -2,6 +2,7 @@ package service
 
 import (
 	"cinema-ticketing-api/internal/enums"
+	"cinema-ticketing-api/internal/model"
 	"cinema-ticketing-api/internal/repository"
 	"cinema-ticketing-api/internal/request"
 	"cinema-ticketing-api/pkg/mailer"
@@ -12,6 +13,8 @@ import (
 )
 
 type TransactionService interface {
+	GetAll() ([]model.Transaction, error)
+	GetByID(transactionID uuid.UUID) (*model.Transaction, error)
 	PayTransaction(userID uuid.UUID, transactionID uuid.UUID, req request.PayTransactionRequest) error
 	CancelTransaction(userID uuid.UUID, transactionID uuid.UUID) error
 }
@@ -34,6 +37,19 @@ func NewTransactionService(
 	}
 }
 
+// GetAll mengembalikan semua transaksi (untuk admin).
+func (s *transactionService) GetAll() ([]model.Transaction, error) {
+	return s.transactionRepo.FindAll()
+}
+
+// GetByID mengembalikan detail satu transaksi beserta items-nya.
+func (s *transactionService) GetByID(transactionID uuid.UUID) (*model.Transaction, error) {
+	transaction, err := s.transactionRepo.FindByID(transactionID)
+	if err != nil {
+		return nil, errors.New("transaction not found")
+	}
+	return transaction, nil
+}
 // PayTransaction membayar transaksi yang statusnya masih pending.
 // Setelah berhasil, status transaksi dan semua tiket terkait diubah menjadi "paid",
 // lalu user mendapat email konfirmasi.

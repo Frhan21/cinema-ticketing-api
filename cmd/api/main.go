@@ -39,6 +39,8 @@ func main() {
 	ticketRepo := repository.NewTicketRepository(db)
 	transactionRepo := repository.NewTransactionRepository(db)
 	transactionItemRepo := repository.NewTransactionItemRepository(db)
+	promoRepo := repository.NewPromoRepository(db)
+	reportRepo := repository.NewReportRepository(db)
 
 	// Inisialisasi Services
 	authService := service.NewAuthService(userRepo, cfg.JWT)
@@ -47,8 +49,10 @@ func main() {
 	movieService := service.NewMovieService(movieRepo)
 	seatService := service.NewSeatService(seatRepo)
 	scheduleService := service.NewScheduleService(scheduleRepo)
-	ticketService := service.NewTicketService(ticketRepo, seatRepo, transactionRepo, transactionItemRepo, scheduleRepo)
+	ticketService := service.NewTicketService(ticketRepo, seatRepo, transactionRepo, transactionItemRepo, scheduleRepo, promoRepo)
 	transactionService := service.NewTransactionService(transactionRepo, ticketRepo, mail)
+	promoService := service.NewPromoService(promoRepo)
+	reportService := service.NewReportService(reportRepo)
 
 	// Inisialisasi Controllers
 	authController := controller.NewAuthController(authService)
@@ -59,6 +63,8 @@ func main() {
 	scheduleController := controller.NewScheduleController(scheduleService)
 	ticketController := controller.NewTicketController(ticketService)
 	transactionController := controller.NewTransactionController(transactionService)
+	promoController := controller.NewPromoController(promoService)
+	reportController := controller.NewReportController(reportService)
 
 	// Start background scheduler (auto-cancel & film reminder)
 	sched := scheduler.NewScheduler(db, mail)
@@ -79,6 +85,8 @@ func main() {
 		Schedule:    scheduleController,
 		Ticket:      ticketController,
 		Transaction: transactionController,
+		Promo:       promoController,
+		Report:      reportController,
 	}, cfg.JWT)
 
 	// Jalankan server

@@ -11,14 +11,16 @@ import (
 )
 
 type RouteControllers struct {
-	Auth     *controller.AuthController
-	User     *controller.UserController
-	Studio   controller.StudioController
-	Movie    controller.MovieController
-	Seat     controller.SeatController
-	Schedule controller.ScheduleController
+	Auth        *controller.AuthController
+	User        *controller.UserController
+	Studio      controller.StudioController
+	Movie       controller.MovieController
+	Seat        controller.SeatController
+	Schedule    controller.ScheduleController
 	Ticket      controller.TicketController
 	Transaction controller.TransactionController
+	Promo       controller.PromoController
+	Report      controller.ReportController
 }
 
 func SetupRoutes(r *gin.Engine, ctrl *RouteControllers, jwtCfg config.JWTConfig) {
@@ -29,30 +31,28 @@ func SetupRoutes(r *gin.Engine, ctrl *RouteControllers, jwtCfg config.JWTConfig)
 
 	api := r.Group("/api/v1")
 
-	// Authentication
+	// Authentication — public
 	authRoute := api.Group("/auth")
 	{
 		authRoute.POST("/register", ctrl.Auth.Register)
 		authRoute.POST("/login", ctrl.Auth.Login)
 	}
 
-	// Get data profile user dan Update Profile
+	// User — authenticated
 	userRoute := api.Group("/user")
 	userRoute.Use(middleware.AuthMiddleware(jwtCfg))
 	{
 		userRoute.GET("/profile", ctrl.User.GetProfile)
-		userRoute.PUT("/profile/", ctrl.User.UpdateProfile)
+		userRoute.PUT("/profile", ctrl.User.UpdateProfile)
 	}
 
-	// Studio
+	// Studio — public (read) | admin (write)
 	studioRoute := api.Group("/studio")
 	studioRoute.Use(middleware.AuthMiddleware(jwtCfg))
 	{
-		// Semua user boleh melihat list studio
 		studioRoute.GET("/", ctrl.Studio.GetAll)
 		studioRoute.GET("/:id", ctrl.Studio.GetByID)
 
-		// Admin hanya boleh membuat, mengupdate, menghapus
 		adminStudio := studioRoute.Group("/")
 		adminStudio.Use(middleware.RoleMiddleware("admin"))
 		{
@@ -62,14 +62,12 @@ func SetupRoutes(r *gin.Engine, ctrl *RouteControllers, jwtCfg config.JWTConfig)
 		}
 	}
 
-	// Movie
+	// Movie — public (read) | admin (write)
 	movieRoute := api.Group("/movie")
 	{
-		// Semua user boleh melihat list movie
 		movieRoute.GET("/", ctrl.Movie.GetAll)
 		movieRoute.GET("/:id", ctrl.Movie.GetByID)
 
-		// Admin hanya boleh membuat, mengupdate, menghapus
 		adminMovie := movieRoute.Group("/")
 		adminMovie.Use(middleware.AuthMiddleware(jwtCfg), middleware.RoleMiddleware("admin"))
 		{
@@ -79,16 +77,14 @@ func SetupRoutes(r *gin.Engine, ctrl *RouteControllers, jwtCfg config.JWTConfig)
 		}
 	}
 
-	// Seat
+	// Seat — authenticated (read) | admin (write)
 	seatRoute := api.Group("/seat")
 	seatRoute.Use(middleware.AuthMiddleware(jwtCfg))
 	{
-		// Semua user boleh melihat list seat
 		seatRoute.GET("/", ctrl.Seat.FindAll)
 		seatRoute.GET("/:id", ctrl.Seat.FindByID)
 		seatRoute.GET("/studio/:studio_id", ctrl.Seat.FindByStudioID)
 
-		// Admin hanya boleh membuat, mengupdate, menghapus
 		adminSeat := seatRoute.Group("/")
 		adminSeat.Use(middleware.RoleMiddleware("admin"))
 		{
@@ -98,15 +94,13 @@ func SetupRoutes(r *gin.Engine, ctrl *RouteControllers, jwtCfg config.JWTConfig)
 		}
 	}
 
-	// Schedule
+	// Schedule — authenticated (read) | admin (write)
 	scheduleRoute := api.Group("/schedule")
 	scheduleRoute.Use(middleware.AuthMiddleware(jwtCfg))
 	{
-		// Semua user boleh melihat list schedule
 		scheduleRoute.GET("/", ctrl.Schedule.FindAll)
 		scheduleRoute.GET("/:id", ctrl.Schedule.FindByID)
 
-		// Admin hanya boleh membuat, mengupdate, menghapus
 		adminSchedule := scheduleRoute.Group("/")
 		adminSchedule.Use(middleware.RoleMiddleware("admin"))
 		{
@@ -116,7 +110,7 @@ func SetupRoutes(r *gin.Engine, ctrl *RouteControllers, jwtCfg config.JWTConfig)
 		}
 	}
 
-	// Ticket
+	// Ticket — authenticated
 	ticketRoute := api.Group("/ticket")
 	ticketRoute.Use(middleware.AuthMiddleware(jwtCfg))
 	{
@@ -125,11 +119,44 @@ func SetupRoutes(r *gin.Engine, ctrl *RouteControllers, jwtCfg config.JWTConfig)
 		ticketRoute.GET("/available-seats/:schedule_id", ctrl.Ticket.GetAvailableSeats)
 	}
 
-	// Transaction
+	// Transaction — authenticated (user) | admin (read all)
 	transactionRoute := api.Group("/transaction")
 	transactionRoute.Use(middleware.AuthMiddleware(jwtCfg))
 	{
+		transactionRoute.GET("/:transaction_id", ctrl.Transaction.GetByID)
 		transactionRoute.POST("/:transaction_id/pay", ctrl.Transaction.PayTransaction)
 		transactionRoute.POST("/:transaction_id/cancel", ctrl.Transaction.CancelTransaction)
+
+		adminTransaction := transactionRoute.Group("/")
+		adminTransaction.Use(middleware.RoleMiddleware("admin"))
+		{
+			adminTransaction.GET("/", ctrl.Transaction.GetAll)
+		}
+	}
+
+	// Promo — public (validate) | admin (CRUD)
+	promoRoute := api.Group("/promo")
+	promoRoute.Use(middleware.AuthMiddleware(jwtCfg))
+	{
+		// User dapat memvalidasi kode promo
+		promoRoute.GET("/validate/:code", ctrl.Promo.ValidateCode)
+
+		adminPromo := promoRoute.Group("/")
+		adminPromo.Use(middleware.RoleMiddleware("admin"))
+		{
+			adminPromo.POST("/", ctrl.Promo.Create)
+			adminPromo.GET("/", ctrl.Promo.GetAll)
+			adminPromo.GET("/:id", ctrl.Promo.GetByID)
+			adminPromo.PUT("/:id", ctrl.Promo.Update)
+			adminPromo.DELETE("/:id", ctrl.Promo.Delete)
+		}
+	}
+
+	// Report — admin only
+	reportRoute := api.Group("/report")
+	reportRoute.Use(middleware.AuthMiddleware(jwtCfg), middleware.RoleMiddleware("admin"))
+	{
+		reportRoute.GET("/daily", ctrl.Report.GetDailyReport)
+		reportRoute.GET("/monthly", ctrl.Report.GetMonthlyReport)
 	}
 }

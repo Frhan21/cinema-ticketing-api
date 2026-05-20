@@ -11,6 +11,8 @@ import (
 )
 
 type TransactionController interface {
+	GetAll(c *gin.Context)
+	GetByID(c *gin.Context)
 	PayTransaction(c *gin.Context)
 	CancelTransaction(c *gin.Context)
 }
@@ -41,6 +43,33 @@ func getUserIDFromContext(c *gin.Context) (uuid.UUID, bool) {
 	}
 
 	return parsed, true
+}
+
+// GetAll mengembalikan semua transaksi — hanya untuk admin.
+func (t *transactionController) GetAll(c *gin.Context) {
+	transactions, err := t.transactionService.GetAll()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, response.ErrorResponse(err.Error()))
+		return
+	}
+	c.JSON(http.StatusOK, response.SuccessResponse("Transactions retrieved successfully", transactions))
+}
+
+// GetByID mengembalikan detail satu transaksi.
+func (t *transactionController) GetByID(c *gin.Context) {
+	transactionID, err := uuid.Parse(c.Param("transaction_id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, response.ErrorResponse("Invalid transaction_id format"))
+		return
+	}
+
+	transaction, err := t.transactionService.GetByID(transactionID)
+	if err != nil {
+		c.JSON(http.StatusNotFound, response.ErrorResponse(err.Error()))
+		return
+	}
+
+	c.JSON(http.StatusOK, response.SuccessResponse("Transaction retrieved successfully", transaction))
 }
 
 // CancelTransaction membatalkan transaksi berdasarkan transaction_id.
