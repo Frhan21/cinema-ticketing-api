@@ -17,6 +17,8 @@ type RouteControllers struct {
 	Movie    controller.MovieController
 	Seat     controller.SeatController
 	Schedule controller.ScheduleController
+	Ticket      controller.TicketController
+	Transaction controller.TransactionController
 }
 
 func SetupRoutes(r *gin.Engine, ctrl *RouteControllers, jwtCfg config.JWTConfig) {
@@ -26,9 +28,6 @@ func SetupRoutes(r *gin.Engine, ctrl *RouteControllers, jwtCfg config.JWTConfig)
 	})
 
 	api := r.Group("/api/v1")
-
-	// Test Send Email
-	r.POST("/api/v1/test-email", controller.TestSendEmail)
 
 	// Authentication
 	authRoute := api.Group("/auth")
@@ -115,5 +114,22 @@ func SetupRoutes(r *gin.Engine, ctrl *RouteControllers, jwtCfg config.JWTConfig)
 			adminSchedule.PUT("/:id", ctrl.Schedule.Update)
 			adminSchedule.DELETE("/:id", ctrl.Schedule.Delete)
 		}
+	}
+
+	// Ticket
+	ticketRoute := api.Group("/ticket")
+	ticketRoute.Use(middleware.AuthMiddleware(jwtCfg))
+	{
+		ticketRoute.POST("/", ctrl.Ticket.BookTicket)
+		ticketRoute.GET("/history", ctrl.Ticket.GetUserHistory)
+		ticketRoute.GET("/available-seats/:schedule_id", ctrl.Ticket.GetAvailableSeats)
+	}
+
+	// Transaction
+	transactionRoute := api.Group("/transaction")
+	transactionRoute.Use(middleware.AuthMiddleware(jwtCfg))
+	{
+		transactionRoute.POST("/:transaction_id/pay", ctrl.Transaction.PayTransaction)
+		transactionRoute.POST("/:transaction_id/cancel", ctrl.Transaction.CancelTransaction)
 	}
 }

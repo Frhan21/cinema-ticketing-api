@@ -2,6 +2,7 @@ package database
 
 import (
 	"cinema-ticketing-api/internal/config"
+	"cinema-ticketing-api/internal/enums"
 	"cinema-ticketing-api/internal/model"
 	"cinema-ticketing-api/pkg/password"
 	"errors"
@@ -43,7 +44,7 @@ func SeedAdmin(db *gorm.DB, cfg config.AdminConfig) error {
 				Name:     adminName,
 				Email:    adminEmail,
 				Password: hashedPassword,
-				Role:     model.AdminRole,
+				Role:     enums.RoleAdmin,
 			}
 
 			if createErr := db.Create(&admin).Error; createErr != nil {
@@ -60,7 +61,7 @@ func SeedAdmin(db *gorm.DB, cfg config.AdminConfig) error {
 	user.Name = adminName
 	user.Email = adminEmail
 	user.Password = hashedPassword
-	user.Role = model.AdminRole
+	user.Role = enums.RoleAdmin
 
 	if err := db.Save(&user).Error; err != nil {
 		return fmt.Errorf("update admin user: %w", err)

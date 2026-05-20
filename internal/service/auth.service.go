@@ -2,6 +2,7 @@ package service
 
 import (
 	"cinema-ticketing-api/internal/config"
+	"cinema-ticketing-api/internal/enums"
 	"cinema-ticketing-api/internal/model"
 	"cinema-ticketing-api/internal/repository"
 	"cinema-ticketing-api/internal/request"
@@ -76,7 +77,7 @@ func (a *authService) Register(req request.RegisterRequest) (*response.AuthRespo
 		Name:     req.Name,
 		Email:    req.Email,
 		Password: hashedPassword,
-		Role:     model.UserRole,
+		Role:     enums.RoleUser,
 	}
 
 	if err = a.userRepository.Create(&user); err != nil {

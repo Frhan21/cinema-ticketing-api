@@ -7,3 +7,8 @@ type SeatResponse struct {
 	CreatedAt  string `json:"created_at"`
 	UpdatedAt  string `json:"updated_at"`
 }
+
+type SeatAvailabilityResponse struct {
+	ID         string `json:"id"`
+	SeatNumber string `json:"seat_number"`
+}
