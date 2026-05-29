@@ -4,19 +4,18 @@ import (
 	"cinema-ticketing-api/internal/model"
 	"cinema-ticketing-api/internal/repository"
 	"cinema-ticketing-api/internal/request"
-	"cinema-ticketing-api/internal/response"
-	"errors"
+	"cinema-ticketing-api/pkg/apperror"
 	"time"
 
 	"github.com/google/uuid"
 )
 
 type PromoService interface {
-	Create(req request.CreatePromoRequest) (*response.PromoResponse, error)
-	GetAll() ([]response.PromoResponse, error)
-	GetByID(id uuid.UUID) (*response.PromoResponse, error)
-	ValidateCode(code string, totalPrice float64) (*response.ValidatePromoResponse, error)
-	Update(id uuid.UUID, req request.UpdatePromoRequest) (*response.PromoResponse, error)
+	Create(req request.CreatePromoRequest) (*model.Promo, error)
+	GetAll() ([]model.Promo, error)
+	GetByID(id uuid.UUID) (*model.Promo, error)
+	ValidateCode(code string, totalPrice float64) (*model.Promo, float64, error)
+	Update(id uuid.UUID, req request.UpdatePromoRequest) (*model.Promo, error)
 	Delete(id uuid.UUID) error
 }
 
@@ -28,14 +27,14 @@ func NewPromoService(promoRepo repository.PromoRepository) PromoService {
 	return &promoService{promoRepo: promoRepo}
 }
 
-func (s *promoService) Create(req request.CreatePromoRequest) (*response.PromoResponse, error) {
+func (s *promoService) Create(req request.CreatePromoRequest) (*model.Promo, error) {
 	// Cek duplikat kode
 	if existing, _ := s.promoRepo.FindByCode(req.Code); existing != nil {
-		return nil, errors.New("promo code already exists")
+		return nil, apperror.NewBadRequestError("promo code already exists")
 	}
 
 	if req.EndDate.Before(req.StartDate) {
-		return nil, errors.New("end_date must be after start_date")
+		return nil, apperror.NewBadRequestError("end_date must be after start_date")
 	}
 
 	promo := model.Promo{
@@ -50,68 +49,60 @@ func (s *promoService) Create(req request.CreatePromoRequest) (*response.PromoRe
 	}
 
 	if err := s.promoRepo.Create(&promo); err != nil {
-		return nil, errors.New("failed to create promo")
+		return nil, apperror.NewInternalServerError("failed to create promo")
 	}
 
-	return toPromoResponse(promo), nil
+	return &promo, nil
 }
 
-func (s *promoService) GetAll() ([]response.PromoResponse, error) {
+func (s *promoService) GetAll() ([]model.Promo, error) {
 	promos, err := s.promoRepo.FindAll()
 	if err != nil {
 		return nil, err
 	}
-	var result []response.PromoResponse
-	for _, p := range promos {
-		result = append(result, *toPromoResponse(p))
-	}
-	return result, nil
+
+	return promos, nil
 }
 
-func (s *promoService) GetByID(id uuid.UUID) (*response.PromoResponse, error) {
+func (s *promoService) GetByID(id uuid.UUID) (*model.Promo, error) {
 	promo, err := s.promoRepo.FindByID(id)
 	if err != nil {
-		return nil, errors.New("promo not found")
+		return nil, apperror.NewNotFoundError("promo not found")
 	}
-	return toPromoResponse(*promo), nil
+	return promo, nil
 }
 
 // ValidateCode memvalidasi kode promo dan menghitung harga setelah diskon.
-func (s *promoService) ValidateCode(code string, totalPrice float64) (*response.ValidatePromoResponse, error) {
+func (s *promoService) ValidateCode(code string, totalPrice float64) (*model.Promo, float64, error) {
 	promo, err := s.promoRepo.FindByCode(code)
 	if err != nil {
-		return nil, errors.New("promo code not found")
+		return nil, 0, apperror.NewNotFoundError("promo code not found")
 	}
 
 	now := time.Now()
 	if !promo.IsActive {
-		return nil, errors.New("promo is not active")
+		return nil, 0, apperror.NewBadRequestError("promo is not active")
 	}
 	if now.Before(promo.StartDate) {
-		return nil, errors.New("promo has not started yet")
+		return nil, 0, apperror.NewBadRequestError("promo has not started yet")
 	}
 	if now.After(promo.EndDate) {
-		return nil, errors.New("promo has expired")
+		return nil, 0, apperror.NewBadRequestError("promo has expired")
 	}
 	if promo.MaxUsage > 0 && promo.UsedCount >= promo.MaxUsage {
-		return nil, errors.New("promo usage limit reached")
+		return nil, 0, apperror.NewBadRequestError("promo usage limit reached")
 	}
 
 	discountAmount := totalPrice * (promo.Discount / 100)
 	discountedPrice := totalPrice - discountAmount
 
-	return &response.ValidatePromoResponse{
-		Code:            promo.Code,
-		Discount:        promo.Discount,
-		OriginalPrice:   totalPrice,
-		DiscountedPrice: discountedPrice,
-	}, nil
+	return promo, discountedPrice, nil
 }
 
-func (s *promoService) Update(id uuid.UUID, req request.UpdatePromoRequest) (*response.PromoResponse, error) {
+func (s *promoService) Update(id uuid.UUID, req request.UpdatePromoRequest) (*model.Promo, error) {
 	promo, err := s.promoRepo.FindByID(id)
 	if err != nil {
-		return nil, errors.New("promo not found")
+		return nil, apperror.NewNotFoundError("promo not found")
 	}
 
 	if req.Description != "" {
@@ -134,30 +125,15 @@ func (s *promoService) Update(id uuid.UUID, req request.UpdatePromoRequest) (*re
 	}
 
 	if err := s.promoRepo.Update(promo); err != nil {
-		return nil, errors.New("failed to update promo")
+		return nil, apperror.NewInternalServerError("failed to update promo")
 	}
 
-	return toPromoResponse(*promo), nil
+	return promo, nil
 }
 
 func (s *promoService) Delete(id uuid.UUID) error {
 	if _, err := s.promoRepo.FindByID(id); err != nil {
-		return errors.New("promo not found")
+		return apperror.NewNotFoundError("promo not found")
 	}
 	return s.promoRepo.Delete(id)
-}
-
-// toPromoResponse mengkonversi model.Promo ke response DTO.
-func toPromoResponse(p model.Promo) *response.PromoResponse {
-	return &response.PromoResponse{
-		ID:          p.ID,
-		Code:        p.Code,
-		Description: p.Description,
-		Discount:    p.Discount,
-		MaxUsage:    p.MaxUsage,
-		UsedCount:   p.UsedCount,
-		StartDate:   p.StartDate,
-		EndDate:     p.EndDate,
-		IsActive:    p.IsActive,
-	}
 }

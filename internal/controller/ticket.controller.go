@@ -4,6 +4,7 @@ import (
 	"cinema-ticketing-api/internal/request"
 	"cinema-ticketing-api/internal/response"
 	"cinema-ticketing-api/internal/service"
+	"cinema-ticketing-api/pkg/apperror"
 	"net/http"
 	"time"
 
@@ -40,7 +41,8 @@ func NewTicketController(ticketService service.TicketService) TicketController {
 func (t *ticketController) BookTicket(c *gin.Context) {
 	var req request.BookTicketRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, response.ErrorResponse("Invalid request body"))
+		c.Error(err)
+		c.Abort()
 		return
 	}
 
@@ -56,17 +58,26 @@ func (t *ticketController) BookTicket(c *gin.Context) {
 	}
 	userID, err := uuid.Parse(userIDStr)
 	if err != nil {
-		c.JSON(http.StatusUnauthorized, response.ErrorResponse("Invalid user ID"))
+		c.Error(apperror.NewUnauthorizedError("Invalid user ID"))
+		c.Abort()
 		return
 	}
 
-	ticket, err := t.ticketService.BookTicket(userID, &req)
+	transaction, ticketIDs, err := t.ticketService.BookTicket(userID, &req)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, response.ErrorResponse(err.Error()))
+		c.Error(err)
+		c.Abort()
 		return
 	}
 
-	c.JSON(http.StatusCreated, response.SuccessResponse("Ticket booked successfully", ticket))
+	ticketRes := response.TicketResponse{
+		TransactionId: transaction.ID,
+		TicketIds:     ticketIDs,
+		TotalPrice:    transaction.TotalPrice,
+		PaymentStatus: string(transaction.PaymentStatus),
+	}
+
+	c.JSON(http.StatusCreated, response.SuccessResponse("Ticket booked successfully", ticketRes))
 }
 
 // GetAvailableSeats godoc
@@ -82,17 +93,27 @@ func (t *ticketController) BookTicket(c *gin.Context) {
 func (t *ticketController) GetAvailableSeats(c *gin.Context) {
 	scheduleID, err := uuid.Parse(c.Param("schedule_id"))
 	if err != nil {
-		c.JSON(http.StatusBadRequest, response.ErrorResponse("Invalid schedule_id format"))
+		c.Error(apperror.NewBadRequestError("Invalid schedule_id format"))
+		c.Abort()
 		return
 	}
 
 	availableSeats, err := t.ticketService.GetAvailableSeats(scheduleID)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, response.ErrorResponse(err.Error()))
+		c.Error(err)
+		c.Abort()
 		return
 	}
 
-	c.JSON(http.StatusOK, response.SuccessResponse("Available seats retrieved successfully", availableSeats))
+	var res []response.SeatAvailabilityResponse
+	for _, seat := range availableSeats {
+		res = append(res, response.SeatAvailabilityResponse{
+			ID:         seat.ID.String(),
+			SeatNumber: seat.SeatNumber,
+		})
+	}
+
+	c.JSON(http.StatusOK, response.SuccessResponse("Available seats retrieved successfully", res))
 }
 
 // GetUserHistory godoc
@@ -123,11 +144,22 @@ func (t *ticketController) GetUserHistory(c *gin.Context) {
 
 	history, err := t.ticketService.GetUserHistory(userID)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, response.ErrorResponse(err.Error()))
+		c.Error(err)
+		c.Abort()
 		return
 	}
 
-	c.JSON(http.StatusOK, response.SuccessResponse("User history retrieved successfully", history))
+	var res []response.TransactionHistoryResponse
+	for _, h := range history {
+		res = append(res, response.TransactionHistoryResponse{
+			ID:            h.ID.String(),
+			TotalPrice:    h.TotalPrice,
+			PaymentStatus: string(h.PaymentStatus),
+			CreatedAt:     h.CreatedAt.Format(time.RFC3339),
+		})
+	}
+
+	c.JSON(http.StatusOK, response.SuccessResponse("User history retrieved successfully", res))
 }
 
 // getUserIDFromContextTicket digunakan internal — alias getUserIDFromContext di ticket controller.

@@ -4,6 +4,7 @@ import (
 	"cinema-ticketing-api/internal/request"
 	"cinema-ticketing-api/internal/response"
 	"cinema-ticketing-api/internal/service"
+	"cinema-ticketing-api/pkg/apperror"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -55,7 +56,8 @@ func getUserIDFromContext(c *gin.Context) (uuid.UUID, bool) {
 func (t *transactionController) GetAll(c *gin.Context) {
 	transactions, err := t.transactionService.GetAll()
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, response.ErrorResponse(err.Error()))
+		c.Error(err)
+		c.Abort()
 		return
 	}
 	c.JSON(http.StatusOK, response.SuccessResponse("Transactions retrieved successfully", transactions))
@@ -75,12 +77,14 @@ func (t *transactionController) GetAll(c *gin.Context) {
 func (t *transactionController) GetByID(c *gin.Context) {
 	transactionID, err := uuid.Parse(c.Param("transaction_id"))
 	if err != nil {
-		c.JSON(http.StatusBadRequest, response.ErrorResponse("Invalid transaction_id format"))
+		c.Error(apperror.NewBadRequestError("Invalid transaction_id format"))
+		c.Abort()
 		return
 	}
 	transaction, err := t.transactionService.GetByID(transactionID)
 	if err != nil {
-		c.JSON(http.StatusNotFound, response.ErrorResponse(err.Error()))
+		c.Error(err)
+		c.Abort()
 		return
 	}
 	c.JSON(http.StatusOK, response.SuccessResponse("Transaction retrieved successfully", transaction))
@@ -100,16 +104,19 @@ func (t *transactionController) GetByID(c *gin.Context) {
 func (t *transactionController) CancelTransaction(c *gin.Context) {
 	userID, ok := getUserIDFromContext(c)
 	if !ok {
-		c.JSON(http.StatusUnauthorized, response.ErrorResponse("Unauthorized"))
+		c.Error(apperror.NewUnauthorizedError("Unauthorized"))
+		c.Abort()
 		return
 	}
 	transactionID, err := uuid.Parse(c.Param("transaction_id"))
 	if err != nil {
-		c.JSON(http.StatusBadRequest, response.ErrorResponse("Invalid transaction_id format"))
+		c.Error(apperror.NewBadRequestError("Invalid transaction_id format"))
+		c.Abort()
 		return
 	}
 	if err := t.transactionService.CancelTransaction(userID, transactionID); err != nil {
-		c.JSON(http.StatusBadRequest, response.ErrorResponse(err.Error()))
+		c.Error(err)
+		c.Abort()
 		return
 	}
 	c.JSON(http.StatusOK, response.SuccessResponse("Transaction cancelled successfully", nil))
@@ -131,21 +138,25 @@ func (t *transactionController) CancelTransaction(c *gin.Context) {
 func (t *transactionController) PayTransaction(c *gin.Context) {
 	userID, ok := getUserIDFromContext(c)
 	if !ok {
-		c.JSON(http.StatusUnauthorized, response.ErrorResponse("Unauthorized"))
+		c.Error(apperror.NewUnauthorizedError("Unauthorized"))
+		c.Abort()
 		return
 	}
 	transactionID, err := uuid.Parse(c.Param("transaction_id"))
 	if err != nil {
-		c.JSON(http.StatusBadRequest, response.ErrorResponse("Invalid transaction_id format"))
+		c.Error(apperror.NewBadRequestError("Invalid transaction_id format"))
+		c.Abort()
 		return
 	}
 	var req request.PayTransactionRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, response.ErrorResponse("Invalid request body"))
+		c.Error(apperror.NewBadRequestError("Invalid request body"))
+		c.Abort()
 		return
 	}
 	if err := t.transactionService.PayTransaction(userID, transactionID, req); err != nil {
-		c.JSON(http.StatusBadRequest, response.ErrorResponse(err.Error()))
+		c.Error(err)
+		c.Abort()
 		return
 	}
 	c.JSON(http.StatusOK, response.SuccessResponse("Transaction paid successfully", nil))

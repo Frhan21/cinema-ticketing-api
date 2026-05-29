@@ -41,7 +41,8 @@ func (r *reportController) GetDailyReport(c *gin.Context) {
 	}
 	report, err := r.reportService.GetDailyReport(date)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, response.ErrorResponse(err.Error()))
+		c.Error(err)
+		c.Abort()
 		return
 	}
 	c.JSON(http.StatusOK, response.SuccessResponse("Daily report retrieved successfully", report))
@@ -66,7 +67,8 @@ func (r *reportController) GetMonthlyReport(c *gin.Context) {
 	month := c.DefaultQuery("month", now.Format("1"))
 	report, err := r.reportService.GetMonthlyReport(year, month)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, response.ErrorResponse(err.Error()))
+		c.Error(err)
+		c.Abort()
 		return
 	}
 	c.JSON(http.StatusOK, response.SuccessResponse("Monthly report retrieved successfully", report))

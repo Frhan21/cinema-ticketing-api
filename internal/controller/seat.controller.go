@@ -6,32 +6,27 @@ import (
 	"cinema-ticketing-api/internal/response"
 	"cinema-ticketing-api/internal/service"
 	"cinema-ticketing-api/pkg/pagination"
-	"errors"
 	"net/http"
+
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 )
 
-func seatStatusCode(err error) int {
-	if err == nil {
-		return http.StatusOK
-	}
-
-	switch {
-	case errors.Is(err, service.ErrSeatNotFound):
-		return http.StatusNotFound
-	case errors.Is(err, service.ErrInvalidSeatID):
-		return http.StatusBadRequest
-	case errors.Is(err, service.ErrInvalidStudioID):
-		return http.StatusBadRequest
-	default:
-		return http.StatusInternalServerError
-	}
-}
-
 type seatController struct {
 	seatService service.SeatService
+}
+
+func toSeatResponse(s *model.Seat) *response.SeatResponse {
+	return &response.SeatResponse{
+		ID:          s.ID.String(),
+		StudioID:    s.StudioID.String(),
+		SeatNumber:  s.SeatNumber,
+		IsAvailable: s.IsAvailable,
+		CreatedAt:   s.CreatedAt.Format(time.RFC3339),
+		UpdatedAt:   s.UpdatedAt.Format(time.RFC3339),
+	}
 }
 
 func (s *seatController) Create(c *gin.Context) {
@@ -61,11 +56,12 @@ func (s *seatController) Create(c *gin.Context) {
 
 	err = s.seatService.Create(seat)
 	if err != nil {
-		c.JSON(seatStatusCode(err), response.ErrorResponse(err.Error()))
+		c.Error(err)
+		c.Abort()
 		return
 	}
 
-	c.JSON(http.StatusCreated, response.SuccessResponse("Seat created successfully", seat))
+	c.JSON(http.StatusCreated, response.SuccessResponse("Seat created successfully", toSeatResponse(seat)))
 }
 
 func (s *seatController) FindAll(c *gin.Context) {
@@ -77,8 +73,14 @@ func (s *seatController) FindAll(c *gin.Context) {
 
 	seats, count, err := s.seatService.FindAll(req)
 	if err != nil {
-		c.JSON(seatStatusCode(err), response.ErrorResponse(err.Error()))
+		c.Error(err)
+		c.Abort()
 		return
+	}
+
+	var res []response.SeatResponse
+	for _, seat := range seats {
+		res = append(res, *toSeatResponse(&seat))
 	}
 
 	meta := &response.Meta{
@@ -88,7 +90,7 @@ func (s *seatController) FindAll(c *gin.Context) {
 		TotalPage: pagination.GetTotalPage(count, req.PerPage),
 	}
 
-	c.JSON(http.StatusOK, response.SuccessResponseWithMeta("Seats fetched successfully", seats, meta))
+	c.JSON(http.StatusOK, response.SuccessResponseWithMeta("Seats fetched successfully", res, meta))
 }
 
 func (s *seatController) FindByID(c *gin.Context) {
@@ -96,11 +98,12 @@ func (s *seatController) FindByID(c *gin.Context) {
 
 	seat, err := s.seatService.FindByID(id)
 	if err != nil {
-		c.JSON(seatStatusCode(err), response.ErrorResponse(err.Error()))
+		c.Error(err)
+		c.Abort()
 		return
 	}
 
-	c.JSON(http.StatusOK, response.SuccessResponse("Seat fetched successfully", seat))
+	c.JSON(http.StatusOK, response.SuccessResponse("Seat fetched successfully", toSeatResponse(seat)))
 }
 
 func (s *seatController) FindByStudioID(c *gin.Context) {
@@ -108,11 +111,17 @@ func (s *seatController) FindByStudioID(c *gin.Context) {
 
 	seats, err := s.seatService.FindByStudioID(studioID)
 	if err != nil {
-		c.JSON(seatStatusCode(err), response.ErrorResponse(err.Error()))
+		c.Error(err)
+		c.Abort()
 		return
 	}
 
-	c.JSON(http.StatusOK, response.SuccessResponse("Seats fetched successfully", seats))
+	var res []response.SeatResponse
+	for _, seat := range seats {
+		res = append(res, *toSeatResponse(&seat))
+	}
+
+	c.JSON(http.StatusOK, response.SuccessResponse("Seats fetched successfully", res))
 }
 
 func (s *seatController) Update(c *gin.Context) {
@@ -120,7 +129,8 @@ func (s *seatController) Update(c *gin.Context) {
 
 	seat, err := s.seatService.FindByID(id)
 	if err != nil {
-		c.JSON(seatStatusCode(err), response.ErrorResponse(err.Error()))
+		c.Error(err)
+		c.Abort()
 		return
 	}
 
@@ -149,11 +159,12 @@ func (s *seatController) Update(c *gin.Context) {
 
 	err = s.seatService.Update(seat)
 	if err != nil {
-		c.JSON(seatStatusCode(err), response.ErrorResponse(err.Error()))
+		c.Error(err)
+		c.Abort()
 		return
 	}
 
-	c.JSON(http.StatusOK, response.SuccessResponse("Seat updated successfully", seat))
+	c.JSON(http.StatusOK, response.SuccessResponse("Seat updated successfully", toSeatResponse(seat)))
 }
 
 func (s *seatController) Delete(c *gin.Context) {
@@ -161,7 +172,8 @@ func (s *seatController) Delete(c *gin.Context) {
 
 	err := s.seatService.Delete(id)
 	if err != nil {
-		c.JSON(seatStatusCode(err), response.ErrorResponse(err.Error()))
+		c.Error(err)
+		c.Abort()
 		return
 	}
 

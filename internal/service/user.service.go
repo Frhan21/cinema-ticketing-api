@@ -4,17 +4,12 @@ import (
 	"cinema-ticketing-api/internal/model"
 	"cinema-ticketing-api/internal/repository"
 	"cinema-ticketing-api/internal/request"
+	"cinema-ticketing-api/pkg/apperror"
 	"errors"
 	"strings"
 
 	"github.com/google/uuid"
 	"gorm.io/gorm"
-)
-
-var (
-	ErrUserNotFound  = errors.New("user not found")
-	ErrInvalidUserID = errors.New("invalid user id")
-	ErrInvalidEmail  = errors.New("email already used by another user")
 )
 
 type UserService interface {
@@ -33,13 +28,13 @@ func NewUserService(userRepository repository.UserRepository) UserService {
 func (s *userService) GetProfile(id string) (*model.User, error) {
 	parsedID, err := uuid.Parse(id)
 	if err != nil {
-		return nil, ErrInvalidUserID
+		return nil, apperror.NewBadRequestError("invalid user id")
 	}
 
 	user, err := s.userRepository.FindByID(parsedID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, ErrUserNotFound
+			return nil, apperror.NewNotFoundError("user not found")
 		}
 		return nil, err
 	}
@@ -50,13 +45,13 @@ func (s *userService) GetProfile(id string) (*model.User, error) {
 func (s *userService) UpdateProfile(id string, input request.UpdateUserRequest) (*model.User, error) {
 	parsedID, err := uuid.Parse(id)
 	if err != nil {
-		return nil, ErrInvalidUserID
+		return nil, apperror.NewBadRequestError("invalid user id")
 	}
 
 	user, err := s.userRepository.FindByID(parsedID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, ErrUserNotFound
+			return nil, apperror.NewNotFoundError("user not found")
 		}
 		return nil, err
 	}
@@ -69,7 +64,7 @@ func (s *userService) UpdateProfile(id string, input request.UpdateUserRequest) 
 		email := strings.TrimSpace(*input.Email)
 		existingUser, err := s.userRepository.FindByEmail(email)
 		if err == nil && existingUser != nil && existingUser.ID != user.ID {
-			return nil, ErrInvalidEmail
+			return nil, apperror.NewBadRequestError("email already used by another user")
 		}
 		if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, err

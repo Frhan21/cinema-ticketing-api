@@ -5,9 +5,10 @@ import (
 	"cinema-ticketing-api/internal/model"
 	"cinema-ticketing-api/internal/repository"
 	"cinema-ticketing-api/internal/request"
+	"cinema-ticketing-api/pkg/apperror"
 	"cinema-ticketing-api/pkg/mailer"
-	"errors"
 	"log"
+	"time"
 
 	"github.com/google/uuid"
 )
@@ -17,6 +18,7 @@ type TransactionService interface {
 	GetByID(transactionID uuid.UUID) (*model.Transaction, error)
 	PayTransaction(userID uuid.UUID, transactionID uuid.UUID, req request.PayTransactionRequest) error
 	CancelTransaction(userID uuid.UUID, transactionID uuid.UUID) error
+	AutoCancelExpiredTransactions()
 }
 
 type transactionService struct {
@@ -46,7 +48,7 @@ func (s *transactionService) GetAll() ([]model.Transaction, error) {
 func (s *transactionService) GetByID(transactionID uuid.UUID) (*model.Transaction, error) {
 	transaction, err := s.transactionRepo.FindByID(transactionID)
 	if err != nil {
-		return nil, errors.New("transaction not found")
+		return nil, apperror.NewNotFoundError("transaction not found")
 	}
 	return transaction, nil
 }
@@ -57,22 +59,22 @@ func (s *transactionService) PayTransaction(userID uuid.UUID, transactionID uuid
 	// 1. Validasi transaksi ada + preload user & items
 	transaction, err := s.transactionRepo.FindByID(transactionID)
 	if err != nil {
-		return errors.New("transaction not found")
+		return apperror.NewNotFoundError("transaction not found")
 	}
 
 	// 2. Validasi kepemilikan
 	if transaction.UserID != userID {
-		return errors.New("transaction does not belong to this user")
+		return apperror.NewUnauthorizedError("transaction does not belong to this user")
 	}
 
 	// 3. Validasi status masih pending
 	if transaction.PaymentStatus != enums.PaymentStatusPending {
-		return errors.New("transaction is already paid or cancelled")
+		return apperror.NewBadRequestError("transaction is already paid or cancelled")
 	}
 
 	// 4. Update status transaksi + payment method
 	if err := s.transactionRepo.UpdateStatusAndMethod(transactionID, enums.PaymentStatusPaid, enums.PaymentMethod(req.PaymentMethod)); err != nil {
-		return errors.New("failed to update transaction status")
+		return apperror.NewInternalServerError("failed to update transaction status")
 	}
 
 	// 5. Update semua tiket terkait menjadi paid
@@ -82,7 +84,7 @@ func (s *transactionService) PayTransaction(userID uuid.UUID, transactionID uuid
 	}
 	if len(ticketIDs) > 0 {
 		if err := s.ticketRepo.UpdateStatusByIDs(ticketIDs, enums.TicketStatusPaid); err != nil {
-			return errors.New("failed to update ticket statuses")
+			return apperror.NewInternalServerError("failed to update ticket statuses")
 		}
 	}
 
@@ -109,22 +111,22 @@ func (s *transactionService) CancelTransaction(userID uuid.UUID, transactionID u
 	// 1. Validasi transaksi ada
 	transaction, err := s.transactionRepo.FindByID(transactionID)
 	if err != nil {
-		return errors.New("transaction not found")
+		return apperror.NewNotFoundError("transaction not found")
 	}
 
 	// 2. Validasi kepemilikan
 	if transaction.UserID != userID {
-		return errors.New("transaction does not belong to this user")
+		return apperror.NewUnauthorizedError("transaction does not belong to this user")
 	}
 
 	// 3. Validasi status masih pending
 	if transaction.PaymentStatus != enums.PaymentStatusPending {
-		return errors.New("transaction is already paid or cancelled")
+		return apperror.NewBadRequestError("transaction is already paid or cancelled")
 	}
 
 	// 4. Update status transaksi menjadi cancelled
 	if err := s.transactionRepo.UpdateStatus(transactionID, enums.PaymentStatusCancelled); err != nil {
-		return errors.New("failed to cancel transaction")
+		return apperror.NewInternalServerError("failed to cancel transaction")
 	}
 
 	// 5. Update semua tiket terkait menjadi cancelled
@@ -134,7 +136,7 @@ func (s *transactionService) CancelTransaction(userID uuid.UUID, transactionID u
 	}
 	if len(ticketIDs) > 0 {
 		if err := s.ticketRepo.UpdateStatusByIDs(ticketIDs, enums.TicketStatusCancelled); err != nil {
-			return errors.New("failed to update ticket statuses")
+			return apperror.NewInternalServerError("failed to update ticket statuses")
 		}
 	}
 
@@ -150,4 +152,43 @@ func (s *transactionService) CancelTransaction(userID uuid.UUID, transactionID u
 	}()
 
 	return nil
+}
+
+// AutoCancelExpiredTransactions implements [TransactionService].
+func (s *transactionService) AutoCancelExpiredTransactions() {
+	expiredBefore := time.Now().Add(-15 * time.Minute)
+
+	expiredTransactions, err := s.transactionRepo.FindExpiredPendingTransactions(expiredBefore)
+	if err != nil {
+		log.Println("[TransactionService] Error fetching expired transactions:", err)
+		return
+	}
+
+	for _, tx := range expiredTransactions {
+		// Update status transaksi menjadi cancelled
+		if err := s.transactionRepo.UpdateStatus(tx.ID, enums.PaymentStatusCancelled); err != nil {
+			log.Printf("[TransactionService] Failed to cancel transaction %s: %v\n", tx.ID, err)
+			continue
+		}
+
+		// Update semua tiket terkait menjadi cancelled
+		var ticketIDs []uuid.UUID
+		for _, item := range tx.Items {
+			ticketIDs = append(ticketIDs, item.TicketID)
+		}
+		if len(ticketIDs) > 0 {
+			s.ticketRepo.UpdateStatusByIDs(ticketIDs, enums.TicketStatusCancelled)
+		}
+
+		log.Printf("[TransactionService] Auto-cancelled transaction %s (expired 15 min)\n", tx.ID)
+
+		// Kirim notifikasi email ke user (non-blocking)
+		go func(user model.User) {
+			if err := s.mailer.SendTicketCancelledNotification(
+				user.Email, user.Name, "Tiket Anda",
+			); err != nil {
+				log.Printf("[TransactionService] Failed to send cancel email to %s: %v\n", user.Email, err)
+			}
+		}(tx.User)
+	}
 }

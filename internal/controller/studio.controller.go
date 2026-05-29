@@ -6,7 +6,6 @@ import (
 	"cinema-ticketing-api/internal/response"
 	"cinema-ticketing-api/internal/service"
 	"cinema-ticketing-api/pkg/pagination"
-	"errors"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -28,6 +27,15 @@ func NewStudioController(studioService service.StudioService) StudioController {
 	return &studioController{studioService: studioService}
 }
 
+func toStudioResponse(s *model.Studio) *response.StudioResponse {
+	return &response.StudioResponse{
+		ID:         s.ID.String(),
+		Name:       s.Name,
+		Capacity:   s.Capacity,
+		Facilities: s.Facilities,
+	}
+}
+
 func (sc *studioController) GetAll(c *gin.Context) {
 	var req request.PaginationRequest
 	if err := c.ShouldBindQuery(&req); err != nil {
@@ -37,8 +45,14 @@ func (sc *studioController) GetAll(c *gin.Context) {
 
 	studios, count, err := sc.studioService.FindAll(req)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, response.ErrorResponse(err.Error()))
+		c.Error(err)
+		c.Abort()
 		return
+	}
+
+	var res []response.StudioResponse
+	for _, studio := range studios {
+		res = append(res, *toStudioResponse(&studio))
 	}
 
 	meta := &response.Meta{
@@ -48,17 +62,18 @@ func (sc *studioController) GetAll(c *gin.Context) {
 		TotalPage: pagination.GetTotalPage(count, req.PerPage),
 	}
 
-	c.JSON(http.StatusOK, response.SuccessResponseWithMeta("Success get studios", studios, meta))
+	c.JSON(http.StatusOK, response.SuccessResponseWithMeta("Success get studios", res, meta))
 }
 
 func (sc *studioController) GetByID(c *gin.Context) {
 	id := c.Param("id")
 	studio, err := sc.studioService.FindByID(id)
 	if err != nil {
-		c.JSON(studioStatusCode(err), response.ErrorResponse(err.Error()))
+		c.Error(err)
+		c.Abort()
 		return
 	}
-	c.JSON(http.StatusOK, response.SuccessResponse("Success get studio", studio))
+	c.JSON(http.StatusOK, response.SuccessResponse("Success get studio", toStudioResponse(studio)))
 }
 
 func (sc *studioController) Create(c *gin.Context) {
@@ -75,10 +90,11 @@ func (sc *studioController) Create(c *gin.Context) {
 	}
 
 	if err := sc.studioService.Create(&studio); err != nil {
-		c.JSON(http.StatusInternalServerError, response.ErrorResponse(err.Error()))
+		c.Error(err)
+		c.Abort()
 		return
 	}
-	c.JSON(http.StatusOK, response.SuccessResponse("Success create studio", studio))
+	c.JSON(http.StatusOK, response.SuccessResponse("Success create studio", toStudioResponse(&studio)))
 }
 
 func (sc *studioController) Update(c *gin.Context) {
@@ -87,7 +103,8 @@ func (sc *studioController) Update(c *gin.Context) {
 	// Cek apakah studio exists terlebih dahulu
 	existingStudio, err := sc.studioService.FindByID(id)
 	if err != nil {
-		c.JSON(studioStatusCode(err), response.ErrorResponse(err.Error()))
+		c.Error(err)
+		c.Abort()
 		return
 	}
 
@@ -108,28 +125,19 @@ func (sc *studioController) Update(c *gin.Context) {
 	}
 
 	if err := sc.studioService.Update(existingStudio); err != nil {
-		c.JSON(http.StatusInternalServerError, response.ErrorResponse(err.Error()))
+		c.Error(err)
+		c.Abort()
 		return
 	}
-	c.JSON(http.StatusOK, response.SuccessResponse("Success update studio", existingStudio))
+	c.JSON(http.StatusOK, response.SuccessResponse("Success update studio", toStudioResponse(existingStudio)))
 }
 
 func (sc *studioController) Delete(c *gin.Context) {
 	id := c.Param("id")
 	if err := sc.studioService.Delete(id); err != nil {
-		c.JSON(studioStatusCode(err), response.ErrorResponse(err.Error()))
+		c.Error(err)
+		c.Abort()
 		return
 	}
 	c.JSON(http.StatusOK, response.SuccessResponse("Success delete studio", nil))
-}
-
-func studioStatusCode(err error) int {
-	switch {
-	case errors.Is(err, service.ErrInvalidStudioID):
-		return http.StatusBadRequest
-	case errors.Is(err, service.ErrStudioNotFound):
-		return http.StatusNotFound
-	default:
-		return http.StatusInternalServerError
-	}
 }

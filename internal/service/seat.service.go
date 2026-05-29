@@ -4,16 +4,11 @@ import (
 	"cinema-ticketing-api/internal/model"
 	"cinema-ticketing-api/internal/repository"
 	"cinema-ticketing-api/internal/request"
+	"cinema-ticketing-api/pkg/apperror"
 	"errors"
 
 	"github.com/google/uuid"
 	"gorm.io/gorm"
-)
-
-var (
-	ErrSeatNotFound        = errors.New("seat not found")
-	ErrInvalidSeatID       = errors.New("invalid seat id")
-	ErrInvalidSeatStudioID = errors.New("invalid studio id")
 )
 
 type seatService struct {
@@ -48,13 +43,13 @@ func (s *seatService) FindAll(req request.PaginationRequest) ([]model.Seat, int6
 func (s *seatService) FindByID(id string) (*model.Seat, error) {
 	parsedID, err := uuid.Parse(id)
 	if err != nil {
-		return nil, ErrInvalidSeatID
+		return nil, apperror.NewBadRequestError("invalid seat id")
 	}
 
 	seat, err := s.seatRepo.FindByID(parsedID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, ErrSeatNotFound
+			return nil, apperror.NewNotFoundError("seat not found")
 		}
 		return nil, err
 	}
@@ -66,7 +61,7 @@ func (s *seatService) FindByID(id string) (*model.Seat, error) {
 func (s *seatService) FindByStudioID(studioID string) ([]model.Seat, error) {
 	parsedStudioID, err := uuid.Parse(studioID)
 	if err != nil {
-		return nil, ErrInvalidSeatStudioID
+		return nil, apperror.NewBadRequestError("invalid studio id")
 	}
 	return s.seatRepo.FindByStudioID(parsedStudioID)
 }

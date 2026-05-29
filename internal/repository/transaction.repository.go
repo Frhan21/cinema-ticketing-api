@@ -3,6 +3,7 @@ package repository
 import (
 	"cinema-ticketing-api/internal/enums"
 	"cinema-ticketing-api/internal/model"
+	"time"
 
 	"github.com/google/uuid"
 	"gorm.io/gorm"
@@ -13,6 +14,7 @@ type TransactionRepository interface {
 	FindByID(id uuid.UUID) (*model.Transaction, error)
 	FindByUserID(userID uuid.UUID) ([]model.Transaction, error)
 	FindAll() ([]model.Transaction, error)
+	FindExpiredPendingTransactions(expiredBefore time.Time) ([]model.Transaction, error)
 	UpdateStatus(id uuid.UUID, status enums.PaymentStatus) error
 	UpdateStatusAndMethod(id uuid.UUID, status enums.PaymentStatus, method enums.PaymentMethod) error
 	Delete(id uuid.UUID) error
@@ -49,6 +51,15 @@ func (r *transactionRepository) FindByUserID(userID uuid.UUID) ([]model.Transact
 func (r *transactionRepository) FindAll() ([]model.Transaction, error) {
 	var transactions []model.Transaction
 	err := r.db.Preload("User").Preload("Items.Ticket").Find(&transactions).Error
+	return transactions, err
+}
+
+// FindExpiredPendingTransactions implements [TransactionRepository].
+func (r *transactionRepository) FindExpiredPendingTransactions(expiredBefore time.Time) ([]model.Transaction, error) {
+	var transactions []model.Transaction
+	err := r.db.Preload("Items").Preload("User").
+		Where("payment_status = ? AND created_at < ?", enums.PaymentStatusPending, expiredBefore).
+		Find(&transactions).Error
 	return transactions, err
 }
 

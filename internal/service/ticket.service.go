@@ -5,16 +5,15 @@ import (
 	"cinema-ticketing-api/internal/model"
 	"cinema-ticketing-api/internal/repository"
 	"cinema-ticketing-api/internal/request"
-	"cinema-ticketing-api/internal/response"
-	"errors"
+	"cinema-ticketing-api/pkg/apperror"
 
 	"github.com/google/uuid"
 )
 
 type TicketService interface {
-	BookTicket(userID uuid.UUID, req *request.BookTicketRequest) (*response.TicketResponse, error)
+	BookTicket(userID uuid.UUID, req *request.BookTicketRequest) (*model.Transaction, []uuid.UUID, error)
 	GetUserHistory(userID uuid.UUID) ([]model.Transaction, error)
-	GetAvailableSeats(scheduleID uuid.UUID) ([]response.SeatAvailabilityResponse, error)
+	GetAvailableSeats(scheduleID uuid.UUID) ([]model.Seat, error)
 }
 
 type ticketService struct {
@@ -51,23 +50,23 @@ func NewTicketService(
 //  2. Ambil SEMUA kursi di studio tersebut
 //  3. Ambil semua seat_id yang sudah punya tiket aktif di schedule ini
 //  4. Saring: kursi yang seat_id-nya TIDAK ADA di daftar booked = kursi tersedia
-func (s *ticketService) GetAvailableSeats(scheduleID uuid.UUID) ([]response.SeatAvailabilityResponse, error) {
+func (s *ticketService) GetAvailableSeats(scheduleID uuid.UUID) ([]model.Seat, error) {
 	// 1. Validasi schedule dan ambil studioID
 	schedule, err := s.scheduleRepo.FindByID(scheduleID)
 	if err != nil {
-		return nil, errors.New("schedule not found")
+		return nil, apperror.NewNotFoundError("schedule not found")
 	}
 
 	// 2. Ambil semua kursi di studio tersebut
 	allSeats, err := s.seatRepo.FindByStudioID(schedule.StudioID)
 	if err != nil {
-		return nil, errors.New("failed to get seats")
+		return nil, apperror.NewInternalServerError("failed to get seats")
 	}
 
 	// 3. Ambil semua seat_id yang sudah di-booking pada schedule ini (status != cancelled)
 	bookedSeatIDs, err := s.ticketRepo.FindBookedSeatIDsBySchedule(scheduleID)
 	if err != nil {
-		return nil, errors.New("failed to check booked seats")
+		return nil, apperror.NewInternalServerError("failed to check booked seats")
 	}
 
 	// Buat map agar pencarian O(1) — lebih efisien daripada nested loop
@@ -77,13 +76,10 @@ func (s *ticketService) GetAvailableSeats(scheduleID uuid.UUID) ([]response.Seat
 	}
 
 	// 4. Filter: hanya kembalikan kursi yang belum ada di bookedMap
-	var availableSeats []response.SeatAvailabilityResponse
+	var availableSeats []model.Seat
 	for _, seat := range allSeats {
 		if !bookedMap[seat.ID] {
-			availableSeats = append(availableSeats, response.SeatAvailabilityResponse{
-				ID:         seat.ID.String(),
-				SeatNumber: seat.SeatNumber,
-			})
+			availableSeats = append(availableSeats, seat)
 		}
 	}
 
@@ -98,29 +94,29 @@ func (s *ticketService) GetAvailableSeats(scheduleID uuid.UUID) ([]response.Seat
 //  3. Buat Ticket (satu per seat)
 //  4. Buat Transaction (header pembayaran)
 //  5. Buat TransactionItem (penghubung Transaction → Ticket)
-func (s *ticketService) BookTicket(userID uuid.UUID, req *request.BookTicketRequest) (*response.TicketResponse, error) {
+func (s *ticketService) BookTicket(userID uuid.UUID, req *request.BookTicketRequest) (*model.Transaction, []uuid.UUID, error) {
 	// 1. Validasi schedule
 	schedule, err := s.scheduleRepo.FindByID(req.ScheduleId)
 	if err != nil {
-		return nil, errors.New("schedule not found")
+		return nil, nil, apperror.NewNotFoundError("schedule not found")
 	}
 
 	// 2. Validasi setiap seat
 	for _, seatID := range req.SeatIds {
 		seat, err := s.seatRepo.FindByID(seatID)
 		if err != nil {
-			return nil, errors.New("seat not found: " + seatID.String())
+			return nil, nil, apperror.NewNotFoundError("seat not found: " + seatID.String())
 		}
 		if !seat.IsAvailable {
-			return nil, errors.New("seat is not available: " + seat.SeatNumber)
+			return nil, nil, apperror.NewBadRequestError("seat is not available: " + seat.SeatNumber)
 		}
 
 		bookedTickets, err := s.ticketRepo.FindByBookedSeats(req.ScheduleId, seatID)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		if len(bookedTickets) > 0 {
-			return nil, errors.New("seat already booked for this schedule: " + seat.SeatNumber)
+			return nil, nil, apperror.NewBadRequestError("seat already booked for this schedule: " + seat.SeatNumber)
 		}
 	}
 
@@ -138,7 +134,7 @@ func (s *ticketService) BookTicket(userID uuid.UUID, req *request.BookTicketRequ
 	}
 
 	if err := s.ticketRepo.CreateMany(tickets); err != nil {
-		return nil, errors.New("failed to create tickets: " + err.Error())
+		return nil, nil, apperror.NewInternalServerError("failed to create tickets: " + err.Error())
 	}
 
 	// 3a. Terapkan promo jika ada kode yang diberikan
@@ -147,13 +143,13 @@ func (s *ticketService) BookTicket(userID uuid.UUID, req *request.BookTicketRequ
 	if req.PromoCode != "" {
 		promo, err := s.promoRepo.FindByCode(req.PromoCode)
 		if err != nil {
-			return nil, errors.New("promo code not found")
+			return nil, nil, apperror.NewNotFoundError("promo code not found")
 		}
 		if !promo.IsActive {
-			return nil, errors.New("promo is not active")
+			return nil, nil, apperror.NewBadRequestError("promo is not active")
 		}
 		if promo.MaxUsage > 0 && promo.UsedCount >= promo.MaxUsage {
-			return nil, errors.New("promo usage limit reached")
+			return nil, nil, apperror.NewBadRequestError("promo usage limit reached")
 		}
 		discount := totalPrice * (promo.Discount / 100)
 		totalPrice -= discount
@@ -172,7 +168,7 @@ func (s *ticketService) BookTicket(userID uuid.UUID, req *request.BookTicketRequ
 	}
 
 	if err := s.transactionRepo.Create(&transaction); err != nil {
-		return nil, errors.New("failed to create transaction: " + err.Error())
+		return nil, nil, apperror.NewInternalServerError("failed to create transaction: " + err.Error())
 	}
 
 	// 5. Buat TransactionItem (penghubung Transaction → Ticket)
@@ -189,22 +185,17 @@ func (s *ticketService) BookTicket(userID uuid.UUID, req *request.BookTicketRequ
 	}
 
 	if err := s.transactionItemRepo.CreateMany(transactionItems); err != nil {
-		return nil, errors.New("failed to create transaction items: " + err.Error())
+		return nil, nil, apperror.NewInternalServerError("failed to create transaction items: " + err.Error())
 	}
 
-	return &response.TicketResponse{
-		TransactionId: transaction.ID,
-		TicketIds:     ticketIDs,
-		TotalPrice:    totalPrice,
-		PaymentStatus: string(transaction.PaymentStatus),
-	}, nil
+	return &transaction, ticketIDs, nil
 }
 
 // GetUserHistory mengambil semua transaksi milik user berdasarkan userID.
 func (s *ticketService) GetUserHistory(userID uuid.UUID) ([]model.Transaction, error) {
 	transactions, err := s.transactionRepo.FindByUserID(userID)
 	if err != nil {
-		return nil, errors.New("failed to get user history")
+		return nil, apperror.NewInternalServerError("failed to get user history")
 	}
 	return transactions, nil
 }

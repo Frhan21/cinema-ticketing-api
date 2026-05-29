@@ -6,7 +6,6 @@ import (
 	"cinema-ticketing-api/internal/response"
 	"cinema-ticketing-api/internal/service"
 	"cinema-ticketing-api/pkg/pagination"
-	"errors"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -14,6 +13,17 @@ import (
 
 type movieController struct {
 	movieService service.MovieService
+}
+
+func toMovieResponse(m *model.Movie) *response.MovieResponse {
+	return &response.MovieResponse{
+		ID:          m.ID.String(),
+		Title:       m.Title,
+		Genre:       m.Genre,
+		Duration:    m.Duration,
+		PosterUrl:   m.PosterUrl,
+		Description: m.Description,
+	}
 }
 
 // Create implements [MovieController].
@@ -25,10 +35,11 @@ func (m *movieController) Create(c *gin.Context) {
 	}
 
 	movie := model.Movie{
-		Title:     req.Title,
-		Genre:     req.Genre,
-		Duration:  req.Duration,
-		PosterUrl: req.PosterUrl,
+		Title:       req.Title,
+		Genre:       req.Genre,
+		Duration:    req.Duration,
+		PosterUrl:   req.PosterUrl,
+		Description: req.Description,
 	}
 
 	err := m.movieService.Create(&movie)
@@ -37,25 +48,27 @@ func (m *movieController) Create(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, response.SuccessResponse("Success create movie", movie))
+	c.JSON(http.StatusOK, response.SuccessResponse("Success create movie", toMovieResponse(&movie)))
 }
 
 // Delete implements [MovieController].
 func (m *movieController) Delete(c *gin.Context) {
 	id := c.Param("id")
-	movie, err := m.movieService.FindByID(id)
+	_, err := m.movieService.FindByID(id)
 	if err != nil {
-		c.JSON(movieStatusCode(err), response.ErrorResponse(err.Error()))
+		c.Error(err)
+		c.Abort()
 		return
 	}
 
 	err = m.movieService.Delete(id)
 	if err != nil {
-		c.JSON(movieStatusCode(err), response.ErrorResponse(err.Error()))
+		c.Error(err)
+		c.Abort()
 		return
 	}
 
-	c.JSON(http.StatusOK, response.SuccessResponse("Success delete movie", movie))
+	c.JSON(http.StatusOK, response.SuccessResponse("Success deleting movie", nil))
 }
 
 // GetAll implements [MovieController].
@@ -72,6 +85,11 @@ func (m *movieController) GetAll(c *gin.Context) {
 		return
 	}
 
+	var res []response.MovieResponse
+	for _, movie := range movies {
+		res = append(res, *toMovieResponse(&movie))
+	}
+
 	meta := &response.Meta{
 		Page:      req.Page,
 		PerPage:   req.PerPage,
@@ -79,7 +97,7 @@ func (m *movieController) GetAll(c *gin.Context) {
 		TotalPage: pagination.GetTotalPage(count, req.PerPage),
 	}
 
-	c.JSON(http.StatusOK, response.SuccessResponseWithMeta("Success get all movie", movies, meta))
+	c.JSON(http.StatusOK, response.SuccessResponseWithMeta("Success get all movie", res, meta))
 }
 
 // GetByID implements [MovieController].
@@ -87,11 +105,12 @@ func (m *movieController) GetByID(c *gin.Context) {
 	id := c.Param("id")
 	movie, err := m.movieService.FindByID(id)
 	if err != nil {
-		c.JSON(movieStatusCode(err), response.ErrorResponse(err.Error()))
+		c.Error(err)
+		c.Abort()
 		return
 	}
 
-	c.JSON(http.StatusOK, response.SuccessResponse("Success get movie by id", movie))
+	c.JSON(http.StatusOK, response.SuccessResponse("Success get movie by id", toMovieResponse(movie)))
 }
 
 // Update implements [MovieController].
@@ -102,7 +121,8 @@ func (m *movieController) Update(c *gin.Context) {
 	movie, err := m.movieService.FindByID(id)
 
 	if err != nil {
-		c.JSON(movieStatusCode(err), response.ErrorResponse(err.Error()))
+		c.Error(err)
+		c.Abort()
 		return
 	}
 
@@ -129,7 +149,9 @@ func (m *movieController) Update(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, response.SuccessResponse("Success update movie", movie))
+	res := toMovieResponse(movie)
+
+	c.JSON(http.StatusOK, response.SuccessResponse("Success update movie", res))
 
 }
 
@@ -143,15 +165,4 @@ type MovieController interface {
 
 func NewMovieController(movieService service.MovieService) MovieController {
 	return &movieController{movieService: movieService}
-}
-
-func movieStatusCode(err error) int {
-	switch {
-	case errors.Is(err, service.ErrInvalidMovieID):
-		return http.StatusBadRequest
-	case errors.Is(err, service.ErrMovieNotFound):
-		return http.StatusNotFound
-	default:
-		return http.StatusInternalServerError
-	}
 }

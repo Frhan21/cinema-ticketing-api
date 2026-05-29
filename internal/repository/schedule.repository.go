@@ -11,6 +11,7 @@ import (
 
 type ScheduleRepository interface {
 	FindAll(page, perPage int) ([]model.Schedule, int64, error)
+	FindUpcomingSchedules(start, end time.Time) ([]model.Schedule, error)
 	FindByID(id uuid.UUID) (model.Schedule, error)
 	Create(schedule *model.Schedule) (model.Schedule, error)
 	Update(schedule *model.Schedule) (model.Schedule, error)
@@ -37,6 +38,14 @@ func (r *scheduleRepository) FindAll(page, perPage int) ([]model.Schedule, int64
 
 	err = r.DB.Preload("Movie").Preload("Studio").Scopes(pagination.Paginate(page, perPage)).Find(&schedules).Error
 	return schedules, count, err
+}
+
+func (r *scheduleRepository) FindUpcomingSchedules(start, end time.Time) ([]model.Schedule, error) {
+	var schedules []model.Schedule
+	err := r.DB.Preload("Movie").Preload("Studio").
+		Where("start_time BETWEEN ? AND ?", start, end).
+		Find(&schedules).Error
+	return schedules, err
 }
 
 func (r *scheduleRepository) FindByID(id uuid.UUID) (model.Schedule, error) {

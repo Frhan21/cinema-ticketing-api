@@ -8,3 +8,10 @@ type TicketResponse struct {
 	TotalPrice    float64     `json:"total_price"`
 	PaymentStatus string      `json:"payment_status"`
 }
+
+type TransactionHistoryResponse struct {
+	ID            string  `json:"id"`
+	TotalPrice    float64 `json:"total_price"`
+	PaymentStatus string  `json:"payment_status"`
+	CreatedAt     string  `json:"created_at"`
+}

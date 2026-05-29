@@ -1,10 +1,10 @@
 package controller
 
 import (
+	"cinema-ticketing-api/internal/model"
 	"cinema-ticketing-api/internal/request"
 	"cinema-ticketing-api/internal/response"
 	"cinema-ticketing-api/internal/service"
-	"errors"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -17,6 +17,15 @@ type UserController struct {
 func NewUserController(userService service.UserService) *UserController {
 	return &UserController{
 		userService: userService,
+	}
+}
+
+func toUserResponse(u *model.User) *response.UserResponse {
+	return &response.UserResponse{
+		ID:    u.ID.String(),
+		Name:  u.Name,
+		Email: u.Email,
+		Role:  string(u.Role),
 	}
 }
 
@@ -35,11 +44,12 @@ func (uc *UserController) GetProfile(c *gin.Context) {
 
 	user, err := uc.userService.GetProfile(id)
 	if err != nil {
-		c.JSON(userStatusCode(err), response.ErrorResponse(err.Error()))
+		c.Error(err)
+		c.Abort()
 		return
 	}
 
-	c.JSON(http.StatusOK, response.SuccessResponse("User profile fetched successfully", user))
+	c.JSON(http.StatusOK, response.SuccessResponse("User profile fetched successfully", toUserResponse(user)))
 }
 
 func (uc *UserController) UpdateProfile(c *gin.Context) {
@@ -63,20 +73,10 @@ func (uc *UserController) UpdateProfile(c *gin.Context) {
 
 	user, err := uc.userService.UpdateProfile(id, req)
 	if err != nil {
-		c.JSON(userStatusCode(err), response.ErrorResponse(err.Error()))
+		c.Error(err)
+		c.Abort()
 		return
 	}
 
-	c.JSON(http.StatusOK, response.SuccessResponse("User profile updated successfully", user))
-}
-
-func userStatusCode(err error) int {
-	switch {
-	case errors.Is(err, service.ErrInvalidUserID), errors.Is(err, service.ErrInvalidEmail):
-		return http.StatusBadRequest
-	case errors.Is(err, service.ErrUserNotFound):
-		return http.StatusNotFound
-	default:
-		return http.StatusInternalServerError
-	}
+	c.JSON(http.StatusOK, response.SuccessResponse("User profile updated successfully", toUserResponse(user)))
 }

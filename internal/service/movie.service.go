@@ -4,15 +4,11 @@ import (
 	"cinema-ticketing-api/internal/model"
 	"cinema-ticketing-api/internal/repository"
 	"cinema-ticketing-api/internal/request"
+	"cinema-ticketing-api/pkg/apperror"
 	"errors"
 
 	"github.com/google/uuid"
 	"gorm.io/gorm"
-)
-
-var (
-	ErrMovieNotFound  = errors.New("movie not found")
-	ErrInvalidMovieID = errors.New("invalid movie id")
 )
 
 type movieService struct {
@@ -22,7 +18,7 @@ type movieService struct {
 // Create implements [MovieService].
 func (m *movieService) Create(movie *model.Movie) error {
 	if movie.Title == "" || movie.Genre == "" || movie.Duration == 0 || movie.PosterUrl == "" {
-		return errors.New("Fill the all required fields")
+		return apperror.NewBadRequestError("Fill the all required fields")
 	}
 
 	movie.ID = uuid.New()
@@ -34,7 +30,7 @@ func (m *movieService) Create(movie *model.Movie) error {
 func (m *movieService) Delete(id string) error {
 	parsedID, err := uuid.Parse(id)
 	if err != nil {
-		return ErrInvalidMovieID
+		return apperror.NewBadRequestError("invalid movie id")
 	}
 
 	_, err = m.movieRepository.FindByID(parsedID)
@@ -61,14 +57,14 @@ func (m *movieService) FindAll(req request.PaginationRequest) ([]model.Movie, in
 func (m *movieService) FindByID(id string) (*model.Movie, error) {
 	parsedID, err := uuid.Parse(id)
 	if err != nil {
-		return nil, ErrInvalidMovieID
+		return nil, apperror.NewBadRequestError("invalid movie id")
 	}
 
 	movie, err := m.movieRepository.FindByID(parsedID)
 
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, ErrMovieNotFound
+			return nil, apperror.NewNotFoundError("movie not found")
 		}
 		return nil, err
 	}

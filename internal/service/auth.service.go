@@ -6,7 +6,7 @@ import (
 	"cinema-ticketing-api/internal/model"
 	"cinema-ticketing-api/internal/repository"
 	"cinema-ticketing-api/internal/request"
-	"cinema-ticketing-api/internal/response"
+	"cinema-ticketing-api/pkg/apperror"
 	"cinema-ticketing-api/pkg/jwt"
 	"cinema-ticketing-api/pkg/password"
 	"errors"
@@ -15,8 +15,8 @@ import (
 )
 
 type AuthService interface {
-	Register(req request.RegisterRequest) (*response.AuthResponse, error)
-	Login(req request.LoginRequest) (*response.AuthResponse, error)
+	Register(req request.RegisterRequest) (*model.User, string, error)
+	Login(req request.LoginRequest) (*model.User, string, error)
 }
 
 type authService struct {
@@ -25,52 +25,46 @@ type authService struct {
 }
 
 // Login implements [AuthService].
-func (a *authService) Login(req request.LoginRequest) (*response.AuthResponse, error) {
+func (a *authService) Login(req request.LoginRequest) (*model.User, string, error) {
 	existingUser, err := a.userRepository.FindByEmail(req.Email)
 
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, errors.New("invalid email or password")
+			return nil, "", apperror.NewUnauthorizedError("invalid email or password")
 		}
-		return nil, err
+		return nil, "", err
 	}
 
 	if !password.CheckPasswordHash(req.Password, existingUser.Password) {
-		return nil, errors.New("invalid email or password")
+		return nil, "", apperror.NewUnauthorizedError("invalid email or password")
 	}
 
 	token, err := jwt.GenerateJwt(existingUser.ID, string(existingUser.Role), a.jwtConfig)
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 
-	return &response.AuthResponse{
-		ID:    existingUser.ID.String(),
-		Name:  existingUser.Name,
-		Email: existingUser.Email,
-		Role:  string(existingUser.Role),
-		Token: token,
-	}, nil
+	return existingUser, token, nil
 }
 
 // Register implements [AuthService].
-func (a *authService) Register(req request.RegisterRequest) (*response.AuthResponse, error) {
+func (a *authService) Register(req request.RegisterRequest) (*model.User, string, error) {
 	existUser, err := a.userRepository.FindByEmail(req.Email)
 	if err == nil && existUser != nil {
-		return nil, errors.New("email already exists")
+		return nil, "", apperror.NewBadRequestError("email already exists")
 	}
 
 	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
-		return nil, err
+		return nil, "", err
 	}
 
 	if req.Password != req.ConfirmPassword {
-		return nil, errors.New("password and confirm password do not match")
+		return nil, "", apperror.NewBadRequestError("password and confirm password do not match")
 	}
 
 	hashedPassword, err := password.HashPassword(req.Password)
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 
 	user := model.User{
@@ -81,21 +75,15 @@ func (a *authService) Register(req request.RegisterRequest) (*response.AuthRespo
 	}
 
 	if err = a.userRepository.Create(&user); err != nil {
-		return nil, err
+		return nil, "", err
 	}
 
 	token, err := jwt.GenerateJwt(user.ID, string(user.Role), a.jwtConfig)
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 
-	return &response.AuthResponse{
-		ID:    user.ID.String(),
-		Name:  user.Name,
-		Email: user.Email,
-		Role:  string(user.Role),
-		Token: token,
-	}, nil
+	return &user, token, nil
 }
 
 func NewAuthService(userRepo repository.UserRepository, jwtCfg config.JWTConfig) AuthService {

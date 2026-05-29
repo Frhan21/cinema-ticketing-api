@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"cinema-ticketing-api/internal/model"
 	"cinema-ticketing-api/internal/request"
 	"cinema-ticketing-api/internal/response"
 	"cinema-ticketing-api/internal/service"
@@ -27,6 +28,21 @@ func NewPromoController(promoService service.PromoService) PromoController {
 	return &promoController{promoService: promoService}
 }
 
+// toPromoResponse mengkonversi model.Promo ke response DTO.
+func toPromoResponse(p model.Promo) *response.PromoResponse {
+	return &response.PromoResponse{
+		ID:          p.ID,
+		Code:        p.Code,
+		Description: p.Description,
+		Discount:    p.Discount,
+		MaxUsage:    p.MaxUsage,
+		UsedCount:   p.UsedCount,
+		StartDate:   p.StartDate,
+		EndDate:     p.EndDate,
+		IsActive:    p.IsActive,
+	}
+}
+
 // Create godoc
 // @Summary      Buat promo baru
 // @Description  Admin dapat membuat kode promo diskon dengan persentase tertentu dan periode berlaku.
@@ -42,15 +58,17 @@ func NewPromoController(promoService service.PromoService) PromoController {
 func (p *promoController) Create(c *gin.Context) {
 	var req request.CreatePromoRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, response.ErrorResponse(err.Error()))
+		c.Error(err)
+		c.Abort()
 		return
 	}
 	promo, err := p.promoService.Create(req)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, response.ErrorResponse(err.Error()))
+		c.Error(err)
+		c.Abort()
 		return
 	}
-	c.JSON(http.StatusCreated, response.SuccessResponse("Promo created successfully", promo))
+	c.JSON(http.StatusCreated, response.SuccessResponse("Promo created successfully", toPromoResponse(*promo)))
 }
 
 // GetAll godoc
@@ -65,10 +83,15 @@ func (p *promoController) Create(c *gin.Context) {
 func (p *promoController) GetAll(c *gin.Context) {
 	promos, err := p.promoService.GetAll()
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, response.ErrorResponse(err.Error()))
+		c.Error(err)
+		c.Abort()
 		return
 	}
-	c.JSON(http.StatusOK, response.SuccessResponse("Promos retrieved successfully", promos))
+	var res []response.PromoResponse
+	for _, promo := range promos {
+		res = append(res, *toPromoResponse(promo))
+	}
+	c.JSON(http.StatusOK, response.SuccessResponse("Promos retrieved successfully", res))
 }
 
 // GetByID godoc
@@ -89,10 +112,11 @@ func (p *promoController) GetByID(c *gin.Context) {
 	}
 	promo, err := p.promoService.GetByID(id)
 	if err != nil {
-		c.JSON(http.StatusNotFound, response.ErrorResponse(err.Error()))
+		c.Error(err)
+		c.Abort()
 		return
 	}
-	c.JSON(http.StatusOK, response.SuccessResponse("Promo retrieved successfully", promo))
+	c.JSON(http.StatusOK, response.SuccessResponse("Promo retrieved successfully", toPromoResponse(*promo)))
 }
 
 // ValidateCode godoc
@@ -115,12 +139,21 @@ func (p *promoController) ValidateCode(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, response.ErrorResponse("total_price query param is required"))
 		return
 	}
-	result, err := p.promoService.ValidateCode(code, req.TotalPrice)
+	promo, discountedPrice, err := p.promoService.ValidateCode(code, req.TotalPrice)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, response.ErrorResponse(err.Error()))
+		c.Error(err)
+		c.Abort()
 		return
 	}
-	c.JSON(http.StatusOK, response.SuccessResponse("Promo is valid", result))
+
+	res := response.ValidatePromoResponse{
+		Code:            promo.Code,
+		Discount:        promo.Discount,
+		OriginalPrice:   req.TotalPrice,
+		DiscountedPrice: discountedPrice,
+	}
+
+	c.JSON(http.StatusOK, response.SuccessResponse("Promo is valid", res))
 }
 
 // Update godoc
@@ -148,10 +181,11 @@ func (p *promoController) Update(c *gin.Context) {
 	}
 	promo, err := p.promoService.Update(id, req)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, response.ErrorResponse(err.Error()))
+		c.Error(err)
+		c.Abort()
 		return
 	}
-	c.JSON(http.StatusOK, response.SuccessResponse("Promo updated successfully", promo))
+	c.JSON(http.StatusOK, response.SuccessResponse("Promo updated successfully", toPromoResponse(*promo)))
 }
 
 // Delete godoc
@@ -171,7 +205,8 @@ func (p *promoController) Delete(c *gin.Context) {
 		return
 	}
 	if err := p.promoService.Delete(id); err != nil {
-		c.JSON(http.StatusBadRequest, response.ErrorResponse(err.Error()))
+		c.Error(err)
+		c.Abort()
 		return
 	}
 	c.JSON(http.StatusOK, response.SuccessResponse("Promo deleted successfully", nil))

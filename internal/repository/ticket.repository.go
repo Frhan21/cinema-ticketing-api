@@ -12,6 +12,7 @@ type TicketRepository interface {
 	CreateMany(tickets []model.Ticket) error
 	FindByID(id uuid.UUID) (*model.Ticket, error)
 	FindByUserID(userID uuid.UUID) ([]model.Ticket, error)
+	FindPaidTicketsBySchedule(scheduleID uuid.UUID) ([]model.Ticket, error)
 	FindByBookedSeats(scheduleID uuid.UUID, seatID uuid.UUID) ([]model.Ticket, error)
 	FindBookedSeatIDsBySchedule(scheduleID uuid.UUID) ([]uuid.UUID, error)
 	UpdateStatusByIDs(ticketIDs []uuid.UUID, status enums.TicketStatus) error
@@ -42,6 +43,15 @@ func (r *ticketRepository) FindByID(id uuid.UUID) (*model.Ticket, error) {
 func (r *ticketRepository) FindByUserID(userID uuid.UUID) ([]model.Ticket, error) {
 	var tickets []model.Ticket
 	err := r.db.Where("user_id = ?", userID).Find(&tickets).Error
+	return tickets, err
+}
+
+// FindPaidTicketsBySchedule implements [TicketRepository].
+func (r *ticketRepository) FindPaidTicketsBySchedule(scheduleID uuid.UUID) ([]model.Ticket, error) {
+	var tickets []model.Ticket
+	err := r.db.Preload("User").
+		Where("schedule_id = ? AND status = ?", scheduleID, enums.TicketStatusPaid).
+		Find(&tickets).Error
 	return tickets, err
 }
 

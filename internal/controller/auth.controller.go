@@ -34,13 +34,22 @@ func (a *AuthController) Register(c *gin.Context) {
 		return
 	}
 
-	result, err := a.authService.Register(req)
+	user, token, err := a.authService.Register(req)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, response.ErrorResponse(err.Error()))
+		c.Error(err)
+		c.Abort()
 		return
 	}
 
-	c.JSON(http.StatusCreated, response.SuccessResponse("User registered successfully", result))
+	res := response.AuthResponse{
+		ID:    user.ID.String(),
+		Name:  user.Name,
+		Email: user.Email,
+		Role:  string(user.Role),
+		Token: token,
+	}
+
+	c.JSON(http.StatusCreated, response.SuccessResponse("User registered successfully", res))
 }
 
 // Login godoc
@@ -61,11 +70,20 @@ func (a *AuthController) Login(c *gin.Context) {
 		return
 	}
 
-	result, err := a.authService.Login(req)
+	user, token, err := a.authService.Login(req)
 	if err != nil {
-		c.JSON(http.StatusUnauthorized, response.ErrorResponse(err.Error()))
+		c.Error(err)
+		c.Abort()
 		return
 	}
 
-	c.JSON(http.StatusOK, response.SuccessResponse("Login successful", result))
+	res := response.AuthResponse{
+		ID:    user.ID.String(),
+		Name:  user.Name,
+		Email: user.Email,
+		Role:  string(user.Role),
+		Token: token,
+	}
+
+	c.JSON(http.StatusOK, response.SuccessResponse("Login successful", res))
 }
