@@ -1,8 +1,7 @@
 package database
 
 import (
-	"cinema-ticketing-api/internal/config"
-	"cinema-ticketing-api/internal/model"
+	"cinema-ticketing-api/config"
 	"fmt"
 	"log"
 
@@ -39,12 +38,7 @@ func ConnectDB(cfg config.DBConfig) *gorm.DB {
 }
 
 func runMigration(cfg config.DBConfig) {
-	databaseURL := fmt.Sprintf(
-		"postgres://%s:%s@%s:%s/%s?sslmode=require",
-		cfg.User, cfg.Password, cfg.Host, cfg.Port, cfg.Name,
-	)
-
-	m, err := migrate.New("file://./database/migrations", databaseURL)
+	m, err := migrate.New("file://./migration", PostgresURL(cfg))
 	if err != nil {
 		log.Fatal("Migration initialization failed:", err)
 	}
@@ -56,19 +50,11 @@ func runMigration(cfg config.DBConfig) {
 	log.Println("Database migration executed successfully")
 }
 
-func AutoMigration(db *gorm.DB) {
-	err := db.AutoMigrate(
-		&model.User{},
-		&model.Studio{},
-		&model.Movie{},
-		&model.Seat{},
-		&model.Schedule{},
-		&model.Ticket{},
-		&model.Transaction{},
-		&model.TransactionItem{},
+// PostgresURL returns the postgres:// connection URL used by golang-migrate.
+// It is shared by the startup auto-migration and the migration CLI (root main.go).
+func PostgresURL(cfg config.DBConfig) string {
+	return fmt.Sprintf(
+		"postgres://%s:%s@%s:%s/%s?sslmode=require",
+		cfg.User, cfg.Password, cfg.Host, cfg.Port, cfg.Name,
 	)
-
-	if err != nil {
-		log.Println("Error AutoMigration:", err)
-	}
 }

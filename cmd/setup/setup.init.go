@@ -1,9 +1,9 @@
 package setup
 
 import (
-	"cinema-ticketing-api/internal/config"
-	"cinema-ticketing-api/internal/middleware"
-	"cinema-ticketing-api/internal/routes"
+	"cinema-ticketing-api/config"
+	"cinema-ticketing-api/interface/http/middleware"
+	"cinema-ticketing-api/interface/http/routes"
 	"log"
 
 	"github.com/gin-gonic/gin"
@@ -18,10 +18,10 @@ func InitApp() {
 	db, mail := InitInfra(cfg)
 
 	// Init modul controller dan router
-	rc, txSvc, schSvc := InitModule(db, cfg, &mail)
+	rc, scheduler := InitModule(db, cfg, &mail)
 
 	// Init scheduler
-	InitScheduler(txSvc, schSvc)
+	scheduler.Start()
 
 	// init gin Default
 	r := gin.Default()

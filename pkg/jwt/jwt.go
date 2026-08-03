@@ -1,7 +1,7 @@
 package jwt
 
 import (
-	"cinema-ticketing-api/internal/config"
+	"cinema-ticketing-api/config"
 	"errors"
 	"time"
 

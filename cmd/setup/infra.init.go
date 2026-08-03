@@ -1,7 +1,8 @@
 package setup
 
 import (
-	"cinema-ticketing-api/internal/config"
+	"cinema-ticketing-api/app/seed"
+	"cinema-ticketing-api/config"
 	"cinema-ticketing-api/pkg/database"
 	"cinema-ticketing-api/pkg/mailer"
 	"log"
@@ -12,7 +13,7 @@ import (
 func InitInfra(cfg *config.Config) (*gorm.DB, mailer.Mailer) {
 
 	db := database.ConnectDB(cfg.DB)
-	if err := database.SeedAdmin(db, cfg.Admin); err != nil {
+	if err := seed.SeedAdmin(db, cfg.Admin); err != nil {
 		log.Fatalf("failed to seed admin: %v", err)
 	}
 

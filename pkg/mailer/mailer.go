@@ -1,7 +1,7 @@
 package mailer
 
 import (
-	"cinema-ticketing-api/internal/config"
+	"cinema-ticketing-api/config"
 	"fmt"
 
 	"gopkg.in/gomail.v2"
