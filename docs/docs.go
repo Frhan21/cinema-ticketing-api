@@ -43,7 +43,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/request.LoginRequest"
+                            "$ref": "#/definitions/dto.LoginRequest"
                         }
                     }
                 ],
@@ -92,7 +92,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/request.RegisterRequest"
+                            "$ref": "#/definitions/dto.RegisterRequest"
                         }
                     }
                 ],
@@ -106,6 +106,55 @@ const docTemplate = `{
                     },
                     "400": {
                         "description": "Request tidak valid",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/payment/notification": {
+            "post": {
+                "description": "Receives a Midtrans webhook and verifies its status directly with Midtrans.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Payment"
+                ],
+                "summary": "Midtrans payment notification",
+                "parameters": [
+                    {
+                        "description": "Midtrans notification",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dto.MidtransNotificationRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
@@ -170,7 +219,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/request.CreatePromoRequest"
+                            "$ref": "#/definitions/dto.CreatePromoRequest"
                         }
                     }
                 ],
@@ -320,7 +369,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/request.UpdatePromoRequest"
+                            "$ref": "#/definitions/dto.UpdatePromoRequest"
                         }
                     }
                 ],
@@ -526,7 +575,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/request.BookTicketRequest"
+                            "$ref": "#/definitions/dto.BookTicketRequest"
                         }
                     }
                 ],
@@ -775,17 +824,14 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Melakukan pembayaran untuk transaksi yang masih berstatus pending. Tiket berubah menjadi 'paid' dan email konfirmasi dikirim.",
-                "consumes": [
-                    "application/json"
-                ],
+                "description": "Membuat Snap transaction dan mengembalikan URL pembayaran Midtrans.",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
-                    "Transaction"
+                    "Payment"
                 ],
-                "summary": "Bayar transaksi",
+                "summary": "Buat pembayaran Midtrans",
                 "parameters": [
                     {
                         "type": "string",
@@ -793,15 +839,6 @@ const docTemplate = `{
                         "name": "transaction_id",
                         "in": "path",
                         "required": true
-                    },
-                    {
-                        "description": "Metode pembayaran",
-                        "name": "body",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/request.PayTransactionRequest"
-                        }
                     }
                 ],
                 "responses": {
@@ -825,13 +862,27 @@ const docTemplate = `{
                             "type": "object",
                             "additionalProperties": true
                         }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
                     }
                 }
             }
         }
     },
     "definitions": {
-        "request.BookTicketRequest": {
+        "dto.BookTicketRequest": {
             "type": "object",
             "required": [
                 "schedule_id",
@@ -853,7 +904,7 @@ const docTemplate = `{
                 }
             }
         },
-        "request.CreatePromoRequest": {
+        "dto.CreatePromoRequest": {
             "type": "object",
             "required": [
                 "code",
@@ -886,7 +937,7 @@ const docTemplate = `{
                 }
             }
         },
-        "request.LoginRequest": {
+        "dto.LoginRequest": {
             "type": "object",
             "required": [
                 "email",
@@ -901,23 +952,46 @@ const docTemplate = `{
                 }
             }
         },
-        "request.PayTransactionRequest": {
+        "dto.MidtransNotificationRequest": {
             "type": "object",
             "required": [
-                "payment_method"
+                "gross_amount",
+                "order_id",
+                "signature_key",
+                "status_code",
+                "transaction_status"
             ],
             "properties": {
-                "payment_method": {
-                    "type": "string",
-                    "enum": [
-                        "credit_card",
-                        "e_wallet",
-                        "bank_transfer"
-                    ]
+                "fraud_status": {
+                    "type": "string"
+                },
+                "gross_amount": {
+                    "type": "string"
+                },
+                "order_id": {
+                    "type": "string"
+                },
+                "payment_type": {
+                    "type": "string"
+                },
+                "settlement_time": {
+                    "type": "string"
+                },
+                "signature_key": {
+                    "type": "string"
+                },
+                "status_code": {
+                    "type": "string"
+                },
+                "transaction_id": {
+                    "type": "string"
+                },
+                "transaction_status": {
+                    "type": "string"
                 }
             }
         },
-        "request.RegisterRequest": {
+        "dto.RegisterRequest": {
             "type": "object",
             "required": [
                 "confirm_password",
@@ -941,7 +1015,7 @@ const docTemplate = `{
                 }
             }
         },
-        "request.UpdatePromoRequest": {
+        "dto.UpdatePromoRequest": {
             "type": "object",
             "properties": {
                 "description": {

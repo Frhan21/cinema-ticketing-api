@@ -1,7 +1,8 @@
 package handler
 
 import (
-	"cinema-ticketing-api/app/movie"
+	moviedto "cinema-ticketing-api/app/movie/dto"
+	movieservice "cinema-ticketing-api/app/movie/service"
 	"cinema-ticketing-api/entities"
 	"cinema-ticketing-api/pkg/pagination"
 	"cinema-ticketing-api/request"
@@ -12,11 +13,11 @@ import (
 )
 
 type movieController struct {
-	movieService movie.MovieService
+	movieService movieservice.MovieService
 }
 
-func toMovieResponse(m *entities.Movie) *movie.MovieResponse {
-	return &movie.MovieResponse{
+func toMovieResponse(m *entities.Movie) *moviedto.MovieResponse {
+	return &moviedto.MovieResponse{
 		ID:          m.ID.String(),
 		Title:       m.Title,
 		Genre:       m.Genre,
@@ -28,7 +29,7 @@ func toMovieResponse(m *entities.Movie) *movie.MovieResponse {
 
 // Create implements [MovieController].
 func (m *movieController) Create(c *gin.Context) {
-	var req movie.MovieRequest
+	var req moviedto.MovieRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, response.ErrorResponse(err.Error()))
 		return
@@ -85,7 +86,7 @@ func (m *movieController) GetAll(c *gin.Context) {
 		return
 	}
 
-	var res []movie.MovieResponse
+	var res []moviedto.MovieResponse
 	for _, movie := range movies {
 		res = append(res, *toMovieResponse(&movie))
 	}
@@ -115,7 +116,7 @@ func (m *movieController) GetByID(c *gin.Context) {
 
 // Update implements [MovieController].
 func (m *movieController) Update(c *gin.Context) {
-	var req movie.UpdateMovieRequest
+	var req moviedto.UpdateMovieRequest
 	id := c.Param("id")
 
 	movie, err := m.movieService.FindByID(id)
@@ -163,6 +164,6 @@ type MovieController interface {
 	Delete(c *gin.Context)
 }
 
-func NewMovieController(movieService movie.MovieService) MovieController {
+func NewMovieController(movieService movieservice.MovieService) MovieController {
 	return &movieController{movieService: movieService}
 }

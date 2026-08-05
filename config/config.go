@@ -9,11 +9,12 @@ import (
 )
 
 type Config struct {
-	App   AppConfig
-	DB    DBConfig
-	JWT   JWTConfig
-	SMTP  SMTPConfig
-	Admin AdminConfig
+	App      AppConfig
+	DB       DBConfig
+	JWT      JWTConfig
+	SMTP     SMTPConfig
+	Admin    AdminConfig
+	Midtrans MidtransConfig
 }
 
 type AppConfig struct {
@@ -48,6 +49,12 @@ type AdminConfig struct {
 	Password string
 }
 
+type MidtransConfig struct {
+	ServerKey     string
+	Environment   string
+	ExpiryMinutes int
+}
+
 func Load() *Config {
 	if err := godotenv.Load(); err != nil {
 		log.Println("Warning: .env file not found, using system environment variables")
@@ -80,6 +87,11 @@ func Load() *Config {
 			Name:     getEnv("ADMIN_NAME", "Administrator"),
 			Email:    getEnv("ADMIN_EMAIL", ""),
 			Password: getEnv("ADMIN_PASSWORD", ""),
+		},
+		Midtrans: MidtransConfig{
+			ServerKey:     getEnv("MIDTRANS_SERVER_KEY", ""),
+			Environment:   getEnv("MIDTRANS_ENV", "sandbox"),
+			ExpiryMinutes: getEnvInt("PAYMENT_EXPIRY_MINUTES", 15),
 		},
 	}
 }

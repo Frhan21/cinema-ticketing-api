@@ -1,7 +1,8 @@
 package handler
 
 import (
-	"cinema-ticketing-api/app/user"
+	userdto "cinema-ticketing-api/app/user/dto"
+	userservice "cinema-ticketing-api/app/user/service"
 	"cinema-ticketing-api/entities"
 	"cinema-ticketing-api/response"
 	"net/http"
@@ -10,17 +11,17 @@ import (
 )
 
 type UserController struct {
-	userService user.UserService
+	userService userservice.UserService
 }
 
-func NewUserController(userService user.UserService) *UserController {
+func NewUserController(userService userservice.UserService) *UserController {
 	return &UserController{
 		userService: userService,
 	}
 }
 
-func toUserResponse(u *entities.User) *user.UserResponse {
-	return &user.UserResponse{
+func toUserResponse(u *entities.User) *userdto.UserResponse {
+	return &userdto.UserResponse{
 		ID:    u.ID.String(),
 		Name:  u.Name,
 		Email: u.Email,
@@ -64,7 +65,7 @@ func (uc *UserController) UpdateProfile(c *gin.Context) {
 		return
 	}
 
-	var req user.UpdateUserRequest
+	var req userdto.UpdateUserRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, response.ErrorResponse(err.Error()))
 		return

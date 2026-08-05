@@ -1,8 +1,9 @@
 package handler
 
 import (
-	"cinema-ticketing-api/app/seat"
-	"cinema-ticketing-api/app/ticket"
+	seatdto "cinema-ticketing-api/app/seat/dto"
+	"cinema-ticketing-api/app/ticket/dto"
+	ticketservice "cinema-ticketing-api/app/ticket/service"
 	"cinema-ticketing-api/interface/http/httpx"
 	"cinema-ticketing-api/pkg/apperror"
 	"cinema-ticketing-api/response"
@@ -20,10 +21,10 @@ type TicketController interface {
 }
 
 type ticketController struct {
-	ticketService ticket.TicketService
+	ticketService ticketservice.TicketService
 }
 
-func NewTicketController(ticketService ticket.TicketService) TicketController {
+func NewTicketController(ticketService ticketservice.TicketService) TicketController {
 	return &ticketController{ticketService: ticketService}
 }
 
@@ -34,13 +35,13 @@ func NewTicketController(ticketService ticket.TicketService) TicketController {
 // @Accept       json
 // @Produce      json
 // @Security     BearerAuth
-// @Param        body  body  ticket.BookTicketRequest  true  "Detail booking tiket"
+// @Param        body  body  dto.BookTicketRequest  true  "Detail booking tiket"
 // @Success      201   {object}  map[string]interface{}
 // @Failure      400   {object}  map[string]interface{}
 // @Failure      401   {object}  map[string]interface{}
 // @Router       /ticket [post]
 func (t *ticketController) BookTicket(c *gin.Context) {
-	var req ticket.BookTicketRequest
+	var req dto.BookTicketRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.Error(err)
 		c.Abort()
@@ -60,7 +61,7 @@ func (t *ticketController) BookTicket(c *gin.Context) {
 		return
 	}
 
-	ticketRes := ticket.TicketResponse{
+	ticketRes := dto.TicketResponse{
 		TransactionId: transaction.ID,
 		TicketIds:     ticketIDs,
 		TotalPrice:    transaction.TotalPrice,
@@ -95,9 +96,9 @@ func (t *ticketController) GetAvailableSeats(c *gin.Context) {
 		return
 	}
 
-	var res []seat.SeatAvailabilityResponse
+	var res []seatdto.SeatAvailabilityResponse
 	for _, s := range availableSeats {
-		res = append(res, seat.SeatAvailabilityResponse{
+		res = append(res, seatdto.SeatAvailabilityResponse{
 			ID:         s.ID.String(),
 			SeatNumber: s.SeatNumber,
 		})
@@ -129,9 +130,9 @@ func (t *ticketController) GetUserHistory(c *gin.Context) {
 		return
 	}
 
-	var res []ticket.TransactionHistoryResponse
+	var res []dto.TransactionHistoryResponse
 	for _, h := range history {
-		res = append(res, ticket.TransactionHistoryResponse{
+		res = append(res, dto.TransactionHistoryResponse{
 			ID:            h.ID.String(),
 			TotalPrice:    h.TotalPrice,
 			PaymentStatus: string(h.PaymentStatus),

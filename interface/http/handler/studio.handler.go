@@ -1,7 +1,8 @@
 package handler
 
 import (
-	"cinema-ticketing-api/app/studio"
+	studiodto "cinema-ticketing-api/app/studio/dto"
+	studioservice "cinema-ticketing-api/app/studio/service"
 	"cinema-ticketing-api/entities"
 	"cinema-ticketing-api/pkg/pagination"
 	"cinema-ticketing-api/request"
@@ -20,15 +21,15 @@ type StudioController interface {
 }
 
 type studioController struct {
-	studioService studio.StudioService
+	studioService studioservice.StudioService
 }
 
-func NewStudioController(studioService studio.StudioService) StudioController {
+func NewStudioController(studioService studioservice.StudioService) StudioController {
 	return &studioController{studioService: studioService}
 }
 
-func toStudioResponse(s *entities.Studio) *studio.StudioResponse {
-	return &studio.StudioResponse{
+func toStudioResponse(s *entities.Studio) *studiodto.StudioResponse {
+	return &studiodto.StudioResponse{
 		ID:         s.ID.String(),
 		Name:       s.Name,
 		Capacity:   s.Capacity,
@@ -50,7 +51,7 @@ func (sc *studioController) GetAll(c *gin.Context) {
 		return
 	}
 
-	var res []studio.StudioResponse
+	var res []studiodto.StudioResponse
 	for _, studio := range studios {
 		res = append(res, *toStudioResponse(&studio))
 	}
@@ -77,7 +78,7 @@ func (sc *studioController) GetByID(c *gin.Context) {
 }
 
 func (sc *studioController) Create(c *gin.Context) {
-	var req studio.StudioRequest
+	var req studiodto.StudioRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, response.ErrorResponse(err.Error()))
 		return
@@ -108,7 +109,7 @@ func (sc *studioController) Update(c *gin.Context) {
 		return
 	}
 
-	var req studio.UpdateStudioRequest
+	var req studiodto.UpdateStudioRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, response.ErrorResponse(err.Error()))
 		return

@@ -18,7 +18,10 @@ func InitApp() {
 	db, mail := InitInfra(cfg)
 
 	// Init modul controller dan router
-	rc, scheduler := InitModule(db, cfg, &mail)
+	rc, scheduler, err := InitModule(db, cfg, &mail)
+	if err != nil {
+		log.Fatalf("Failed to initialize modules: %v", err)
+	}
 
 	// Init scheduler
 	scheduler.Start()

@@ -1,7 +1,7 @@
 package handler
 
 import (
-	"cinema-ticketing-api/app/report"
+	reportservice "cinema-ticketing-api/app/report/service"
 	"cinema-ticketing-api/response"
 	"net/http"
 	"time"
@@ -15,10 +15,10 @@ type ReportController interface {
 }
 
 type reportController struct {
-	reportService report.ReportService
+	reportService reportservice.ReportService
 }
 
-func NewReportController(reportService report.ReportService) ReportController {
+func NewReportController(reportService reportservice.ReportService) ReportController {
 	return &reportController{reportService: reportService}
 }
 

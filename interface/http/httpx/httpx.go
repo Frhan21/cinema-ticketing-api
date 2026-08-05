@@ -25,3 +25,12 @@ func GetUserIDFromContext(c *gin.Context) (uuid.UUID, bool) {
 
 	return parsed, true
 }
+
+func GetRoleFromContext(c *gin.Context) (string, bool) {
+	role, exists := c.Get("role")
+	if !exists {
+		return "", false
+	}
+	value, ok := role.(string)
+	return value, ok
+}

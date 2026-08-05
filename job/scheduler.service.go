@@ -1,31 +1,35 @@
 package job
 
 import (
-	"cinema-ticketing-api/app/schedule"
-	"cinema-ticketing-api/app/ticket"
+	schedulerepository "cinema-ticketing-api/app/schedule/repository"
+	ticketrepository "cinema-ticketing-api/app/ticket/repository"
+	ticketservice "cinema-ticketing-api/app/ticket/service"
 	"cinema-ticketing-api/pkg/mailer"
 	"log"
 	"time"
 )
 
 type Scheduler struct {
-	transactionService ticket.TransactionService
-	scheduleRepo       schedule.ScheduleRepository
-	ticketRepo         ticket.TicketRepository
+	transactionService ticketservice.TransactionService
+	scheduleRepo       schedulerepository.ScheduleRepository
+	ticketRepo         ticketrepository.TicketRepository
 	mailer             *mailer.Mailer
+	paymentExpiry      time.Duration
 }
 
 func NewScheduler(
-	transactionService ticket.TransactionService,
-	scheduleRepo schedule.ScheduleRepository,
-	ticketRepo ticket.TicketRepository,
+	transactionService ticketservice.TransactionService,
+	scheduleRepo schedulerepository.ScheduleRepository,
+	ticketRepo ticketrepository.TicketRepository,
 	mailer *mailer.Mailer,
+	paymentExpiry time.Duration,
 ) *Scheduler {
 	return &Scheduler{
 		transactionService: transactionService,
 		scheduleRepo:       scheduleRepo,
 		ticketRepo:         ticketRepo,
 		mailer:             mailer,
+		paymentExpiry:      paymentExpiry,
 	}
 }
 
@@ -33,7 +37,7 @@ func NewScheduler(
 func (s *Scheduler) Start() {
 	go s.runAutoCancelExpiredTransactions()
 	go s.runUpcomingFilmReminder()
-	log.Println("Scheduler started: auto-cancel (15 min) & film reminder (30 min before)")
+	log.Printf("Scheduler started: auto-cancel (%s) & film reminder (30 min before)", s.paymentExpiry)
 }
 
 // runAutoCancelExpiredTransactions menjalankan pengecekan setiap menit.

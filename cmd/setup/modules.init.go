@@ -1,49 +1,69 @@
 package setup
 
 import (
-	"cinema-ticketing-api/app/auth"
-	"cinema-ticketing-api/app/movie"
-	"cinema-ticketing-api/app/promo"
-	"cinema-ticketing-api/app/report"
-	"cinema-ticketing-api/app/schedule"
-	"cinema-ticketing-api/app/seat"
-	"cinema-ticketing-api/app/studio"
-	"cinema-ticketing-api/app/ticket"
-	"cinema-ticketing-api/app/user"
+	authservice "cinema-ticketing-api/app/auth/service"
+	movierepository "cinema-ticketing-api/app/movie/repository"
+	movieservice "cinema-ticketing-api/app/movie/service"
+	paymentgateway "cinema-ticketing-api/app/payment/gateway"
+	paymentrepository "cinema-ticketing-api/app/payment/repository"
+	paymentservice "cinema-ticketing-api/app/payment/service"
+	promorepository "cinema-ticketing-api/app/promo/repository"
+	promoservice "cinema-ticketing-api/app/promo/service"
+	reportrepository "cinema-ticketing-api/app/report/repository"
+	reportservice "cinema-ticketing-api/app/report/service"
+	schedulerepository "cinema-ticketing-api/app/schedule/repository"
+	scheduleservice "cinema-ticketing-api/app/schedule/service"
+	seatrepository "cinema-ticketing-api/app/seat/repository"
+	seatservice "cinema-ticketing-api/app/seat/service"
+	studiorepository "cinema-ticketing-api/app/studio/repository"
+	studioservice "cinema-ticketing-api/app/studio/service"
+	ticketrepository "cinema-ticketing-api/app/ticket/repository"
+	ticketservice "cinema-ticketing-api/app/ticket/service"
+	userrepository "cinema-ticketing-api/app/user/repository"
+	userservice "cinema-ticketing-api/app/user/service"
 	"cinema-ticketing-api/config"
 	"cinema-ticketing-api/interface/http/handler"
 	"cinema-ticketing-api/interface/http/routes"
 	"cinema-ticketing-api/job"
 	"cinema-ticketing-api/pkg/mailer"
+	"fmt"
+	"time"
 
 	"gorm.io/gorm"
 )
 
-func InitModule(db *gorm.DB, cfg *config.Config, mail *mailer.Mailer) (*routes.RouteControllers, *job.Scheduler) {
+func InitModule(db *gorm.DB, cfg *config.Config, mail *mailer.Mailer) (*routes.RouteControllers, *job.Scheduler, error) {
 
 	// Inisialisasi Repositories
-	userRepo := user.NewUserRepository(db)
-	studioRepo := studio.NewStudioRepository(db)
-	movieRepo := movie.NewMovieRepository(db)
-	seatRepo := seat.NewSeatRepository(db)
-	scheduleRepo := schedule.NewScheduleRepository(db)
-	ticketRepo := ticket.NewTicketRepository(db)
-	transactionRepo := ticket.NewTransactionRepository(db)
-	transactionItemRepo := ticket.NewTransactionItemRepository(db)
-	promoRepo := promo.NewPromoRepository(db)
-	reportRepo := report.NewReportRepository(db)
+	userRepo := userrepository.NewUserRepository(db)
+	studioRepo := studiorepository.NewStudioRepository(db)
+	movieRepo := movierepository.NewMovieRepository(db)
+	seatRepo := seatrepository.NewSeatRepository(db)
+	scheduleRepo := schedulerepository.NewScheduleRepository(db)
+	ticketRepo := ticketrepository.NewTicketRepository(db)
+	transactionRepo := ticketrepository.NewTransactionRepository(db)
+	promoRepo := promorepository.NewPromoRepository(db)
+	reportRepo := reportrepository.NewReportRepository(db)
+	paymentRepo := paymentrepository.NewPaymentRepository(db)
+
+	paymentGateway, err := paymentgateway.NewMidtransGateway(cfg.Midtrans)
+	if err != nil {
+		return nil, nil, fmt.Errorf("initialize Midtrans gateway: %w", err)
+	}
 
 	// Inisialisasi Services
-	authService := auth.NewAuthService(userRepo, cfg.JWT)
-	userService := user.NewUserService(userRepo)
-	studioService := studio.NewStudioService(studioRepo)
-	movieService := movie.NewMovieService(movieRepo)
-	seatService := seat.NewSeatService(seatRepo)
-	scheduleService := schedule.NewScheduleService(scheduleRepo)
-	ticketService := ticket.NewTicketService(ticketRepo, seatRepo, transactionRepo, transactionItemRepo, scheduleRepo, promoRepo)
-	transactionService := ticket.NewTransactionService(transactionRepo, ticketRepo, mail)
-	promoService := promo.NewPromoService(promoRepo)
-	reportService := report.NewReportService(reportRepo)
+	authService := authservice.NewAuthService(userRepo, cfg.JWT)
+	userService := userservice.NewUserService(userRepo)
+	studioService := studioservice.NewStudioService(studioRepo)
+	movieService := movieservice.NewMovieService(movieRepo)
+	seatService := seatservice.NewSeatService(seatRepo)
+	scheduleService := scheduleservice.NewScheduleService(scheduleRepo)
+	ticketService := ticketservice.NewTicketService(ticketRepo, seatRepo, transactionRepo, scheduleRepo, promoRepo)
+	paymentExpiry := time.Duration(cfg.Midtrans.ExpiryMinutes) * time.Minute
+	transactionService := ticketservice.NewTransactionService(transactionRepo, ticketRepo, mail, paymentExpiry)
+	promoService := promoservice.NewPromoService(promoRepo)
+	reportService := reportservice.NewReportService(reportRepo)
+	paymentService := paymentservice.NewPaymentService(paymentRepo, transactionRepo, paymentGateway, mail)
 
 	// Inisialisasi Handlers (controllers)
 	authController := handler.NewAuthController(authService)
@@ -56,9 +76,10 @@ func InitModule(db *gorm.DB, cfg *config.Config, mail *mailer.Mailer) (*routes.R
 	transactionController := handler.NewTransactionController(transactionService)
 	promoController := handler.NewPromoController(promoService)
 	reportController := handler.NewReportController(reportService)
+	paymentController := handler.NewPaymentController(paymentService)
 
 	// Inisialisasi Scheduler
-	scheduler := job.NewScheduler(transactionService, scheduleRepo, ticketRepo, mail)
+	scheduler := job.NewScheduler(transactionService, scheduleRepo, ticketRepo, mail, paymentExpiry)
 
 	return &routes.RouteControllers{
 		Auth:        authController,
@@ -69,7 +90,8 @@ func InitModule(db *gorm.DB, cfg *config.Config, mail *mailer.Mailer) (*routes.R
 		Schedule:    scheduleController,
 		Ticket:      ticketController,
 		Transaction: transactionController,
+		Payment:     paymentController,
 		Promo:       promoController,
 		Report:      reportController,
-	}, scheduler
+	}, scheduler, nil
 }

@@ -1,7 +1,8 @@
 package handler
 
 import (
-	seatpkg "cinema-ticketing-api/app/seat"
+	seatdto "cinema-ticketing-api/app/seat/dto"
+	seatservice "cinema-ticketing-api/app/seat/service"
 	"cinema-ticketing-api/entities"
 	"cinema-ticketing-api/pkg/pagination"
 	"cinema-ticketing-api/request"
@@ -14,11 +15,11 @@ import (
 )
 
 type seatController struct {
-	seatService seatpkg.SeatService
+	seatService seatservice.SeatService
 }
 
-func toSeatResponse(s *entities.Seat) *seatpkg.SeatResponse {
-	return &seatpkg.SeatResponse{
+func toSeatResponse(s *entities.Seat) *seatdto.SeatResponse {
+	return &seatdto.SeatResponse{
 		ID:          s.ID.String(),
 		StudioID:    s.StudioID.String(),
 		SeatNumber:  s.SeatNumber,
@@ -29,7 +30,7 @@ func toSeatResponse(s *entities.Seat) *seatpkg.SeatResponse {
 }
 
 func (s *seatController) Create(c *gin.Context) {
-	var req seatpkg.SeatRequest
+	var req seatdto.SeatRequest
 
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, response.ErrorResponse(err.Error()))
@@ -77,7 +78,7 @@ func (s *seatController) FindAll(c *gin.Context) {
 		return
 	}
 
-	var res []seatpkg.SeatResponse
+	var res []seatdto.SeatResponse
 	for _, seat := range seats {
 		res = append(res, *toSeatResponse(&seat))
 	}
@@ -115,7 +116,7 @@ func (s *seatController) FindByStudioID(c *gin.Context) {
 		return
 	}
 
-	var res []seatpkg.SeatResponse
+	var res []seatdto.SeatResponse
 	for _, seat := range seats {
 		res = append(res, *toSeatResponse(&seat))
 	}
@@ -133,7 +134,7 @@ func (s *seatController) Update(c *gin.Context) {
 		return
 	}
 
-	var req seatpkg.UpdateSeatRequest
+	var req seatdto.UpdateSeatRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, response.ErrorResponse(err.Error()))
 		return
@@ -188,6 +189,6 @@ type SeatController interface {
 	Delete(c *gin.Context)
 }
 
-func NewSeatController(seatService seatpkg.SeatService) SeatController {
+func NewSeatController(seatService seatservice.SeatService) SeatController {
 	return &seatController{seatService: seatService}
 }

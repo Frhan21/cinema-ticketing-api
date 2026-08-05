@@ -11,7 +11,8 @@ REST API untuk pengelolaan bioskop, jadwal tayang, booking kursi, pembayaran tik
 - JWT authentication dengan role `user` dan `admin`
 - CRUD studio, film, kursi, jadwal, dan promo
 - Booking beberapa kursi dalam satu transaksi
-- Pembayaran dan pembatalan transaksi
+- Midtrans Snap Redirect dengan item tiket, promo discount, dan webhook terverifikasi
+- Pembayaran idempotent dan pembatalan transaksi
 - Auto-cancel transaksi pending setelah 15 menit
 - Pengingat film 30 menit sebelum jadwal tayang
 - Dokumentasi interaktif Swagger
@@ -24,6 +25,7 @@ REST API untuk pengelolaan bioskop, jadwal tayang, booking kursi, pembayaran tik
 | Database | PostgreSQL, GORM |
 | Migrasi | golang-migrate |
 | Auth | JWT |
+| Payment | Midtrans Snap Redirect |
 | Dokumentasi | swaggo / Swagger |
 | Notifikasi | SMTP via gomail |
 
@@ -31,6 +33,7 @@ REST API untuk pengelolaan bioskop, jadwal tayang, booking kursi, pembayaran tik
 
 - Go **1.25.0**
 - PostgreSQL yang dapat diakses dengan `sslmode=require`
+- Akun Midtrans Sandbox atau Production untuk menjalankan payment flow
 
 ## Menjalankan Secara Lokal
 
@@ -52,6 +55,8 @@ REST API untuk pengelolaan bioskop, jadwal tayang, booking kursi, pembayaran tik
    DB_NAME=cinema_ticketing
    JWT_SECRET=replace-with-a-secure-secret
    JWT_EXPIRATION=24h
+   MIDTRANS_SERVER_KEY=your-midtrans-server-key
+   MIDTRANS_ENV=sandbox
    ```
 
 3. Jalankan API dari root repository.
@@ -78,7 +83,7 @@ Kosongkan `ADMIN_EMAIL` dan `ADMIN_PASSWORD` untuk melewati proses seeding. Jika
 
 ### SMTP (Opsional)
 
-SMTP digunakan untuk email pembayaran, pembatalan, dan pengingat film.
+SMTP digunakan untuk email pembayaran sukses, pembatalan, dan pengingat film. Email pembayaran dikirim setelah status Midtrans terverifikasi dan database berhasil commit.
 
 ```env
 SMTP_HOST=smtp.example.com
@@ -87,6 +92,24 @@ SMTP_USER=your_username
 SMTP_PASSWORD=your_password
 SMTP_SENDER=no-reply@example.com
 ```
+
+### Midtrans
+
+Payment menggunakan Midtrans Snap Redirect. Server key hanya digunakan backend dan wajib tersedia saat aplikasi dijalankan:
+
+```env
+MIDTRANS_SERVER_KEY=your-midtrans-server-key
+MIDTRANS_ENV=sandbox
+PAYMENT_EXPIRY_MINUTES=15
+```
+
+Nilai `MIDTRANS_ENV` yang didukung adalah `sandbox` dan `production`. `PAYMENT_EXPIRY_MINUTES` digunakan bersama oleh Snap dan scheduler auto-cancel agar expiry konsisten. Atur Payment Notification URL di dashboard Midtrans menjadi:
+
+```text
+https://<public-api-host>/api/v1/payment/notification
+```
+
+Midtrans tidak dapat mengakses localhost. Gunakan HTTPS tunnel untuk pengujian notification dari mesin lokal. Jangan menaruh server key pada frontend atau response API.
 
 ### Migrasi Database
 
@@ -109,6 +132,7 @@ Koneksi database dibaca dari `.env` (`DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWO
 | Health check | `GET http://localhost:8080/health` |
 | Swagger UI | `http://localhost:8080/swagger/index.html` |
 | API base URL | `http://localhost:8080/api/v1` |
+| Payment specification | [`docs/specs/payment.md`](docs/specs/payment.md) |
 
 Endpoint yang memerlukan autentikasi menerima header berikut:
 
@@ -129,19 +153,22 @@ Gunakan `POST /api/v1/auth/register` atau `POST /api/v1/auth/login` untuk memper
 | Seat | `/seat/`, `/seat/:id`, `/seat/studio/:studio_id` | Authenticated; admin untuk write |
 | Schedule | `/schedule/`, `/schedule/:id` | Authenticated; admin untuk write |
 | Ticket | `POST /ticket/`, `GET /ticket/history`, `GET /ticket/available-seats/:schedule_id` | Authenticated |
-| Transaction | `GET /transaction/:transaction_id`, `POST /pay`, `POST /cancel` | Authenticated |
+| Transaction | `GET /transaction/:transaction_id`, `POST /transaction/:transaction_id/pay`, `POST /transaction/:transaction_id/cancel` | Authenticated |
 | Transaction list | `GET /transaction/` | Admin |
+| Payment notification | `POST /payment/notification` | Public, verified server-to-server |
 | Promo | `GET /promo/validate/:code`; CRUD | Authenticated; admin untuk CRUD |
 | Report | `GET /report/daily`, `GET /report/monthly` | Admin |
 
-Detail request, query parameter, dan response tersedia di Swagger UI.
+Detail request, query parameter, dan response tersedia di Swagger UI. Untuk flow payment, [`docs/specs/payment.md`](docs/specs/payment.md) adalah source of truth sampai masalah resolusi alias DTO pada generator Swagger diperbaiki.
 
 ## Contoh Alur Booking
 
 1. Login dan simpan token JWT.
 2. Lihat jadwal dan kursi yang tersedia.
-3. Booking satu atau lebih kursi.
-4. Bayar transaksi yang masih `pending` dalam 15 menit.
+3. Booking satu atau lebih kursi; promo code bersifat opsional.
+4. Buat Snap payment untuk transaksi yang masih `pending`.
+5. Redirect user ke URL Midtrans.
+6. Midtrans mengirim notification dan backend memverifikasi status sebelum mengubah transaction/ticket.
 
 ```bash
 # Booking
@@ -156,12 +183,12 @@ curl -X POST http://localhost:8080/api/v1/ticket/ \
 
 # Pembayaran
 curl -X POST http://localhost:8080/api/v1/transaction/<transaction-uuid>/pay \
-  -H 'Authorization: Bearer <token>' \
-  -H 'Content-Type: application/json' \
-  -d '{"payment_method":"bank_transfer"}'
+  -H 'Authorization: Bearer <token>'
 ```
 
-Metode pembayaran yang diterima: `credit_card`, `e_wallet`, dan `bank_transfer`.
+Endpoint pay tidak menerima body. Harga, quantity, promo discount, item details, dan `gross_amount` dihitung dari data server. Response berisi Snap `token` dan `redirect_url`; frontend mengarahkan user ke URL tersebut. Metode pembayaran dipilih pada halaman Midtrans.
+
+Redirect dari Midtrans bukan bukti pembayaran. Frontend harus membaca status transaction dari API; hanya notification yang telah diverifikasi melalui Midtrans GET Status yang dapat mengubah status menjadi `paid` atau `cancelled`.
 
 ## Format Response
 
@@ -189,6 +216,7 @@ Respons paginasi juga dapat menyertakan `meta`.
 cmd/api/main.go         # entrypoint aplikasi + CLI migrasi (create/up/down/version/force)
 cmd/setup/           # composition root, infrastruktur, dan scheduler
 migration/           # migrasi SQL berpasangan up/down
+docs/specs/          # source-of-truth specification untuk flow bisnis
 entities/            # semua model persistence + enums status (package entities)
 app/
   auth/              # autentikasi (register, login)
@@ -197,7 +225,8 @@ app/
   studio/            # manajemen studio
   seat/              # manajemen kursi
   schedule/          # jadwal tayang
-  ticket/            # booking tiket, transaksi, pembayaran, dan item transaksi
+  ticket/            # booking tiket, transaksi, dan item transaksi
+  payment/           # gateway Midtrans, payment service/repository, dan DTO
   promo/             # kode promo
   report/            # laporan penjualan admin
   seed/              # seeding admin saat startup
@@ -220,12 +249,12 @@ Setiap feature package mengikuti alur `service -> repository -> database`; handl
 ```bash
 go fmt ./...                                  # format Go files
 go test ./...                                 # compile/test seluruh package
-go test ./app/ticket                        # focused package check
+go test ./app/ticket                          # focused package check
 go build -o cinema-api ./cmd/api              # build binary
 ~/go/bin/swag init -g cmd/api/main.go --output docs  # update Swagger setelah mengubah annotation API
 ```
 
-Repository ini belum memiliki test file, Makefile, task runner, CI workflow, atau konfigurasi linter.
+Repository memiliki unit test untuk payment gateway, payment service, dan payment handler. Belum ada Makefile, task runner, CI workflow, atau konfigurasi linter.
 
 ## Kontribusi
 
@@ -235,13 +264,13 @@ Alur dependency: `Routes → Handler → Service → Repository → Database`. C
 
 1. **Buat migration** — `go run cmd/api/main.go create create_reviews_table`, lalu isi SQL di `migration/<timestamp>_create_reviews_table.up.sql` dan `.down.sql`.
 2. **Buat entity** — `entities/review.entity.go` (`package entities`, tipe `Review`).
-3. **Buat feature package** — `app/review/` berisi `review.request.go` (DTO), `review.repository.go`, dan `review.service.go` (interface + implementasi).
+3. **Buat feature package** — `app/review/` berisi subpackage `dto/`, `repository/`, dan `service/`.
 4. **Buat handler** — `interface/http/handler/review.handler.go` (`package handler`) dengan annotation Swagger, memanggil service.
 5. **Daftarkan route** — di `interface/http/routes/route.go`, pakai `ctrl.Review`.
 6. **Wire** — tambahkan di `cmd/setup/modules.init.go`: `reviewRepo`, `reviewService`, lalu `handler.NewReviewController(reviewService)`.
 7. **Regenerate Swagger** — `~/go/bin/swag init -g cmd/api/main.go --output docs`.
 
-Konvensi penamaan: `NewXxxHandler/NewXxxService/NewXxxRepository` sebagai constructor; DTO `CreateXxxRequest`/`UpdateXxxRequest`/`XxxResponse`; service didefinisikan sebagai interface. Service tidak boleh menerima `*gin.Context`, handler tidak boleh query database langsung.
+Konvensi penamaan: `NewXxxController`/`NewXxxService`/`NewXxxRepository` sebagai constructor; DTO `CreateXxxRequest`/`UpdateXxxRequest`/`XxxResponse`; service didefinisikan sebagai interface. Service tidak boleh menerima `*gin.Context`, handler tidak boleh query database langsung.
 
 ### Proses Pull Request
 
@@ -260,5 +289,5 @@ Konvensi penamaan: `NewXxxHandler/NewXxxService/NewXxxRepository` sebagai constr
 
 - Tambahkan perubahan schema sebagai pasangan migration `.up.sql` dan `.down.sql` di `migration/`; aplikasi tidak memanggil `AutoMigration` saat startup. Gunakan `go run cmd/api/main.go create <nama>` untuk membuat pasangan file migrasi baru.
 - ID menggunakan UUID.
-- Untuk kontrak endpoint dan proteksi role terkini, gunakan `interface/http/routes/route.go` sebagai sumber kebenaran.
+- Untuk registrasi endpoint dan proteksi role terkini, gunakan `interface/http/routes/route.go`. Untuk kontrak dan perilaku payment, gunakan `docs/specs/payment.md` sebagai sumber kebenaran.
 - Regenerasi `docs/` saat mengubah Swagger annotation atau kontrak API yang terdokumentasi.

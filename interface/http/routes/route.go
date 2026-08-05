@@ -22,6 +22,7 @@ type RouteControllers struct {
 	Schedule    handler.ScheduleController
 	Ticket      handler.TicketController
 	Transaction handler.TransactionController
+	Payment     handler.PaymentController
 	Promo       handler.PromoController
 	Report      handler.ReportController
 }
@@ -36,6 +37,12 @@ func SetupRoutes(r *gin.Engine, ctrl *RouteControllers, jwtCfg config.JWTConfig)
 	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 
 	api := r.Group("/api/v1")
+
+	// Payment notification is public because it is called by Midtrans.
+	paymentRoute := api.Group("/payment")
+	{
+		paymentRoute.POST("/notification", ctrl.Payment.HandleNotification)
+	}
 
 	// Authentication — public
 	authRoute := api.Group("/auth")
@@ -130,7 +137,7 @@ func SetupRoutes(r *gin.Engine, ctrl *RouteControllers, jwtCfg config.JWTConfig)
 	transactionRoute.Use(middleware.AuthMiddleware(jwtCfg))
 	{
 		transactionRoute.GET("/:transaction_id", ctrl.Transaction.GetByID)
-		transactionRoute.POST("/:transaction_id/pay", ctrl.Transaction.PayTransaction)
+		transactionRoute.POST("/:transaction_id/pay", ctrl.Payment.CreatePayment)
 		transactionRoute.POST("/:transaction_id/cancel", ctrl.Transaction.CancelTransaction)
 
 		adminTransaction := transactionRoute.Group("/")

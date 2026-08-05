@@ -1,7 +1,8 @@
 package handler
 
 import (
-	schedulepkg "cinema-ticketing-api/app/schedule"
+	scheduledto "cinema-ticketing-api/app/schedule/dto"
+	scheduleservice "cinema-ticketing-api/app/schedule/service"
 	"cinema-ticketing-api/pkg/apperror"
 	"cinema-ticketing-api/pkg/pagination"
 	"cinema-ticketing-api/pkg/utils"
@@ -22,12 +23,12 @@ type ScheduleController interface {
 }
 
 type scheduleController struct {
-	scheduleService schedulepkg.ScheduleService
+	scheduleService scheduleservice.ScheduleService
 }
 
 // Create implements [ScheduleController].
 func (s *scheduleController) Create(c *gin.Context) {
-	var req schedulepkg.CreateSchedule
+	var req scheduledto.CreateSchedule
 
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.Error(err)
@@ -42,7 +43,7 @@ func (s *scheduleController) Create(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusCreated, response.SuccessResponse("Schedule created successfully", &schedulepkg.CreateScheduleResponse{
+	c.JSON(http.StatusCreated, response.SuccessResponse("Schedule created successfully", &scheduledto.CreateScheduleResponse{
 		ID:        schedule.ID,
 		MovieID:   schedule.MovieID,
 		StudioID:  schedule.StudioID,
@@ -97,9 +98,9 @@ func (s *scheduleController) FindAll(c *gin.Context) {
 		TotalPage: pagination.GetTotalPage(count, req.PerPage),
 	}
 
-	var scheduleResponses []schedulepkg.ScheduleResponse
+	var scheduleResponses []scheduledto.ScheduleResponse
 	for _, sch := range schedules {
-		scheduleResponses = append(scheduleResponses, schedulepkg.ScheduleResponse{
+		scheduleResponses = append(scheduleResponses, scheduledto.ScheduleResponse{
 			ID:        sch.ID,
 			MovieID:   sch.MovieID,
 			StudioID:  sch.StudioID,
@@ -132,7 +133,7 @@ func (s *scheduleController) FindByID(c *gin.Context) {
 		c.Abort()
 		return
 	}
-	c.JSON(http.StatusOK, response.SuccessResponse("Schedule fetched successfully", &schedulepkg.ScheduleResponse{
+	c.JSON(http.StatusOK, response.SuccessResponse("Schedule fetched successfully", &scheduledto.ScheduleResponse{
 		ID:        schedule.ID,
 		MovieID:   schedule.MovieID,
 		StudioID:  schedule.StudioID,
@@ -156,7 +157,7 @@ func (s *scheduleController) Update(c *gin.Context) {
 		c.Abort()
 		return
 	}
-	var req schedulepkg.UpdateSchedule
+	var req scheduledto.UpdateSchedule
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.Error(err)
 		c.Abort()
@@ -168,7 +169,7 @@ func (s *scheduleController) Update(c *gin.Context) {
 		c.Abort()
 		return
 	}
-	c.JSON(http.StatusOK, response.SuccessResponse("Schedule updated successfully", &schedulepkg.UpdateScheduleResponse{
+	c.JSON(http.StatusOK, response.SuccessResponse("Schedule updated successfully", &scheduledto.UpdateScheduleResponse{
 		ID:        schedule.ID,
 		MovieID:   schedule.MovieID,
 		StudioID:  schedule.StudioID,
@@ -178,6 +179,6 @@ func (s *scheduleController) Update(c *gin.Context) {
 	}))
 }
 
-func NewScheduleController(scheduleService schedulepkg.ScheduleService) ScheduleController {
+func NewScheduleController(scheduleService scheduleservice.ScheduleService) ScheduleController {
 	return &scheduleController{scheduleService: scheduleService}
 }

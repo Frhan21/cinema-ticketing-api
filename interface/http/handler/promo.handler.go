@@ -1,7 +1,8 @@
 package handler
 
 import (
-	promopkg "cinema-ticketing-api/app/promo"
+	"cinema-ticketing-api/app/promo/dto"
+	promoservice "cinema-ticketing-api/app/promo/service"
 	"cinema-ticketing-api/entities"
 	"cinema-ticketing-api/response"
 	"net/http"
@@ -20,16 +21,16 @@ type PromoController interface {
 }
 
 type promoController struct {
-	promoService promopkg.PromoService
+	promoService promoservice.PromoService
 }
 
-func NewPromoController(promoService promopkg.PromoService) PromoController {
+func NewPromoController(promoService promoservice.PromoService) PromoController {
 	return &promoController{promoService: promoService}
 }
 
 // toPromoResponse mengkonversi model Promo ke response DTO.
-func toPromoResponse(p entities.Promo) *promopkg.PromoResponse {
-	return &promopkg.PromoResponse{
+func toPromoResponse(p entities.Promo) *dto.PromoResponse {
+	return &dto.PromoResponse{
 		ID:          p.ID,
 		Code:        p.Code,
 		Description: p.Description,
@@ -49,13 +50,13 @@ func toPromoResponse(p entities.Promo) *promopkg.PromoResponse {
 // @Accept       json
 // @Produce      json
 // @Security     BearerAuth
-// @Param        body  body  promopkg.CreatePromoRequest  true  "Data promo"
+// @Param        body  body  dto.CreatePromoRequest  true  "Data promo"
 // @Success      201   {object}  map[string]interface{}
 // @Failure      400   {object}  map[string]interface{}
 // @Failure      401   {object}  map[string]interface{}
 // @Router       /promo [post]
 func (p *promoController) Create(c *gin.Context) {
-	var req promopkg.CreatePromoRequest
+	var req dto.CreatePromoRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.Error(err)
 		c.Abort()
@@ -86,7 +87,7 @@ func (p *promoController) GetAll(c *gin.Context) {
 		c.Abort()
 		return
 	}
-	var res []promopkg.PromoResponse
+	var res []dto.PromoResponse
 	for _, promo := range promos {
 		res = append(res, *toPromoResponse(promo))
 	}
@@ -145,7 +146,7 @@ func (p *promoController) ValidateCode(c *gin.Context) {
 		return
 	}
 
-	res := promopkg.ValidatePromoResponse{
+	res := dto.ValidatePromoResponse{
 		Code:            promo.Code,
 		Discount:        promo.Discount,
 		OriginalPrice:   req.TotalPrice,
@@ -163,7 +164,7 @@ func (p *promoController) ValidateCode(c *gin.Context) {
 // @Produce      json
 // @Security     BearerAuth
 // @Param        id    path  string                    true  "Promo ID (UUID)"
-// @Param        body  body  promopkg.UpdatePromoRequest         true  "Data promo yang diperbarui"
+// @Param        body  body  dto.UpdatePromoRequest         true  "Data promo yang diperbarui"
 // @Success      200  {object}  map[string]interface{}
 // @Failure      400  {object}  map[string]interface{}
 // @Router       /promo/{id} [put]
@@ -173,7 +174,7 @@ func (p *promoController) Update(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, response.ErrorResponse("Invalid promo ID"))
 		return
 	}
-	var req promopkg.UpdatePromoRequest
+	var req dto.UpdatePromoRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, response.ErrorResponse(err.Error()))
 		return

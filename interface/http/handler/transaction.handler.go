@@ -1,7 +1,7 @@
 package handler
 
 import (
-	"cinema-ticketing-api/app/ticket"
+	ticketservice "cinema-ticketing-api/app/ticket/service"
 	"cinema-ticketing-api/interface/http/httpx"
 	"cinema-ticketing-api/pkg/apperror"
 	"cinema-ticketing-api/response"
@@ -14,15 +14,14 @@ import (
 type TransactionController interface {
 	GetAll(c *gin.Context)
 	GetByID(c *gin.Context)
-	PayTransaction(c *gin.Context)
 	CancelTransaction(c *gin.Context)
 }
 
 type transactionController struct {
-	transactionService ticket.TransactionService
+	transactionService ticketservice.TransactionService
 }
 
-func NewTransactionController(transactionService ticket.TransactionService) TransactionController {
+func NewTransactionController(transactionService ticketservice.TransactionService) TransactionController {
 	return &transactionController{transactionService: transactionService}
 }
 
@@ -58,13 +57,21 @@ func (t *transactionController) GetAll(c *gin.Context) {
 // @Failure      404  {object}  map[string]interface{}
 // @Router       /transaction/{transaction_id} [get]
 func (t *transactionController) GetByID(c *gin.Context) {
+	userID, ok := httpx.GetUserIDFromContext(c)
+	if !ok {
+		c.Error(apperror.NewUnauthorizedError("Unauthorized"))
+		c.Abort()
+		return
+	}
+	role, _ := httpx.GetRoleFromContext(c)
+
 	transactionID, err := uuid.Parse(c.Param("transaction_id"))
 	if err != nil {
 		c.Error(apperror.NewBadRequestError("Invalid transaction_id format"))
 		c.Abort()
 		return
 	}
-	transaction, err := t.transactionService.GetByID(transactionID)
+	transaction, err := t.transactionService.GetByID(userID, role, transactionID)
 	if err != nil {
 		c.Error(err)
 		c.Abort()
@@ -103,44 +110,4 @@ func (t *transactionController) CancelTransaction(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, response.SuccessResponse("Transaction cancelled successfully", nil))
-}
-
-// PayTransaction godoc
-// @Summary      Bayar transaksi
-// @Description  Melakukan pembayaran untuk transaksi yang masih berstatus pending. Tiket berubah menjadi 'paid' dan email konfirmasi dikirim.
-// @Tags         Transaction
-// @Accept       json
-// @Produce      json
-// @Security     BearerAuth
-// @Param        transaction_id  path  string                        true  "Transaction ID (UUID)"
-// @Param        body            body  ticket.PayTransactionRequest          true  "Metode pembayaran"
-// @Success      200  {object}  map[string]interface{}
-// @Failure      400  {object}  map[string]interface{}
-// @Failure      401  {object}  map[string]interface{}
-// @Router       /transaction/{transaction_id}/pay [post]
-func (t *transactionController) PayTransaction(c *gin.Context) {
-	userID, ok := httpx.GetUserIDFromContext(c)
-	if !ok {
-		c.Error(apperror.NewUnauthorizedError("Unauthorized"))
-		c.Abort()
-		return
-	}
-	transactionID, err := uuid.Parse(c.Param("transaction_id"))
-	if err != nil {
-		c.Error(apperror.NewBadRequestError("Invalid transaction_id format"))
-		c.Abort()
-		return
-	}
-	var req ticket.PayTransactionRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.Error(apperror.NewBadRequestError("Invalid request body"))
-		c.Abort()
-		return
-	}
-	if err := t.transactionService.PayTransaction(userID, transactionID, req); err != nil {
-		c.Error(err)
-		c.Abort()
-		return
-	}
-	c.JSON(http.StatusOK, response.SuccessResponse("Transaction paid successfully", nil))
 }
