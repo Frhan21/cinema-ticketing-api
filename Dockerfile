@@ -14,5 +14,5 @@ COPY --from=builder /app/docs /app/docs
 COPY --from=builder /app/migration /app/migration
 # Copy .env jika digunakan (tidak recommended untuk production)
 # COPY --from=builder /app/.env /app/.env 
-EXPOSE 8000
+EXPOSE 8080
 CMD ["/app/main"]

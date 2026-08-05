@@ -1,0 +1,40 @@
+services:
+  db:
+    image: postgres:16
+    container_name: cinema_db
+    environment:
+      POSTGRES_USER: ${DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-postgrespassword}
+      POSTGRES_DB: ${DB_NAME:-cinema_ticketing}
+    # Mengaktifkan SSL menggunakan certificate default snakeoil bawaan image Debian postgres:16
+    command: ["postgres", "-c", "ssl=on", "-c", "ssl_cert_file=/etc/ssl/certs/ssl-cert-snakeoil.pem", "-c", "ssl_key_file=/etc/ssl/private/ssl-cert-snakeoil.key"]
+    ports:
+      - "5433:5432" # Host port 5433 agar tidak bentrok dengan PostgreSQL lokal di port 5432
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-postgres} -d ${DB_NAME:-cinema_ticketing}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: cinema_api
+    env_file:
+      - .env
+    ports:
+      - "8080:8080"
+    environment:
+      # Override DB_HOST dan DB_PORT untuk jaringan internal Docker Compose
+      DB_HOST: "db"
+      DB_PORT: "5432"
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
