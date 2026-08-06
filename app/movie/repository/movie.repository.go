@@ -45,6 +45,15 @@ func (m *movieRepository) FindByID(id uuid.UUID) (*entities.Movie, error) {
 	return movie, nil
 }
 
+func (m *movieRepository) FindByTMDBID(tmdbID int64) (*entities.Movie, error) {
+	var movie entities.Movie
+	err := m.db.Table("movies").Where("tmdb_id = ?", tmdbID).First(&movie).Error
+	if err != nil {
+		return nil, err
+	}
+	return &movie, nil
+}
+
 // Update implements [MovieRepository].
 func (m *movieRepository) Update(movie *entities.Movie) error {
 	return m.db.Table("movies").Save(movie).Error
@@ -55,6 +64,7 @@ type MovieRepository interface {
 	Update(movie *entities.Movie) error
 	FindAll(page, perPage int) ([]entities.Movie, int64, error)
 	FindByID(id uuid.UUID) (*entities.Movie, error)
+	FindByTMDBID(tmdbID int64) (*entities.Movie, error)
 	Delete(id uuid.UUID) error
 }
 

@@ -4,6 +4,7 @@ import (
 	moviedto "cinema-ticketing-api/app/movie/dto"
 	movieservice "cinema-ticketing-api/app/movie/service"
 	"cinema-ticketing-api/entities"
+	"cinema-ticketing-api/pkg/apperror"
 	"cinema-ticketing-api/pkg/pagination"
 	"cinema-ticketing-api/request"
 	"cinema-ticketing-api/response"
@@ -19,6 +20,7 @@ type movieController struct {
 func toMovieResponse(m *entities.Movie) *moviedto.MovieResponse {
 	return &moviedto.MovieResponse{
 		ID:          m.ID.String(),
+		TMDBID:      m.TMDBID,
 		Title:       m.Title,
 		Genre:       m.Genre,
 		Duration:    m.Duration,
@@ -36,6 +38,7 @@ func (m *movieController) Create(c *gin.Context) {
 	}
 
 	movie := entities.Movie{
+		TMDBID:      req.TMDBID,
 		Title:       req.Title,
 		Genre:       req.Genre,
 		Duration:    req.Duration,
@@ -50,6 +53,35 @@ func (m *movieController) Create(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, response.SuccessResponse("Success create movie", toMovieResponse(&movie)))
+}
+
+// Import godoc
+// @Summary      Import film dari TMDB
+// @Description  Mengambil detail film dari TMDB berdasarkan ID dan menyimpannya secara idempotent
+// @Tags         movie
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @Param        request body dto.ImportMovieRequest true "TMDB movie ID"
+// @Success      200 {object} response.Response
+// @Failure      400 {object} response.Response
+// @Failure      404 {object} response.Response
+// @Failure      500 {object} response.Response
+// @Router       /movie/import [post]
+func (m *movieController) Import(c *gin.Context) {
+	var req moviedto.ImportMovieRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.Error(apperror.NewBadRequestError(err.Error()))
+		return
+	}
+
+	movie, err := m.movieService.Import(c.Request.Context(), req.TMDBID)
+	if err != nil {
+		c.Error(err)
+		return
+	}
+
+	c.JSON(http.StatusOK, response.SuccessResponse("Movie imported successfully", toMovieResponse(movie)))
 }
 
 // Delete implements [MovieController].
@@ -157,6 +189,7 @@ func (m *movieController) Update(c *gin.Context) {
 }
 
 type MovieController interface {
+	Import(c *gin.Context)
 	Create(c *gin.Context)
 	Update(c *gin.Context)
 	GetAll(c *gin.Context)

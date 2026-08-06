@@ -39,6 +39,29 @@ definitions:
     - end_date
     - start_date
     type: object
+  dto.CreateSchedule:
+    properties:
+      movie_id:
+        type: string
+      price:
+        type: number
+      start_time:
+        type: string
+      studio_id:
+        type: string
+    required:
+    - movie_id
+    - price
+    - start_time
+    - studio_id
+    type: object
+  dto.ImportMovieRequest:
+    properties:
+      tmdb_id:
+        type: integer
+    required:
+    - tmdb_id
+    type: object
   dto.LoginRequest:
     properties:
       email:
@@ -109,6 +132,38 @@ definitions:
         type: integer
       start_date:
         type: string
+    type: object
+  dto.UpdateSchedule:
+    properties:
+      movie_id:
+        type: string
+      price:
+        type: number
+      start_time:
+        type: string
+      studio_id:
+        type: string
+    type: object
+  response.Meta:
+    properties:
+      page:
+        type: integer
+      per_page:
+        type: integer
+      total_data:
+        type: integer
+      total_page:
+        type: integer
+    type: object
+  response.Response:
+    properties:
+      data: {}
+      error:
+        type: string
+      message:
+        type: string
+      meta:
+        $ref: '#/definitions/response.Meta'
     type: object
 host: localhost:8080
 info:
@@ -186,6 +241,43 @@ paths:
       summary: Register user baru
       tags:
       - Auth
+  /movie/import:
+    post:
+      consumes:
+      - application/json
+      description: Mengambil detail film dari TMDB berdasarkan ID dan menyimpannya
+        secara idempotent
+      parameters:
+      - description: TMDB movie ID
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.ImportMovieRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Response'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: Import film dari TMDB
+      tags:
+      - movie
   /payment/notification:
     post:
       consumes:
@@ -477,6 +569,127 @@ paths:
       summary: Laporan penjualan bulanan
       tags:
       - Report
+  /schedule:
+    post:
+      consumes:
+      - application/json
+      description: Membuat jadwal dan menghitung end_time dari durasi film
+      parameters:
+      - description: Schedule data
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.CreateSchedule'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/response.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Response'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: Buat jadwal film
+      tags:
+      - schedule
+  /schedule/{id}:
+    put:
+      consumes:
+      - application/json
+      description: Memperbarui jadwal dan menghitung ulang end_time dari durasi film
+      parameters:
+      - description: Schedule UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Schedule changes
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.UpdateSchedule'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Response'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: Perbarui jadwal film
+      tags:
+      - schedule
+  /schedule/movie/tmdb/{tmdb_id}:
+    get:
+      description: Mengembalikan jadwal mendatang untuk satu film TMDB
+      parameters:
+      - description: TMDB movie ID
+        in: path
+        name: tmdb_id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.Response'
+      summary: Jadwal film berdasarkan TMDB ID
+      tags:
+      - schedule
+  /schedule/upcoming:
+    get:
+      description: Mengembalikan semua jadwal mendatang beserta TMDB ID dan studio
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.Response'
+      summary: Daftar jadwal mendatang
+      tags:
+      - schedule
   /ticket:
     post:
       consumes:

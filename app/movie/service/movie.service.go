@@ -1,10 +1,12 @@
 package service
 
 import (
+	moviegateway "cinema-ticketing-api/app/movie/gateway"
 	movierepository "cinema-ticketing-api/app/movie/repository"
 	"cinema-ticketing-api/entities"
 	"cinema-ticketing-api/pkg/apperror"
 	"cinema-ticketing-api/request"
+	"context"
 	"errors"
 
 	"github.com/google/uuid"
@@ -13,6 +15,7 @@ import (
 
 type movieService struct {
 	movieRepository movierepository.MovieRepository
+	movieGateway    moviegateway.MovieGateway
 }
 
 // Create implements [MovieService].
@@ -24,6 +27,51 @@ func (m *movieService) Create(movie *entities.Movie) error {
 	movie.ID = uuid.New()
 
 	return m.movieRepository.Create(movie)
+}
+
+func (m *movieService) Import(ctx context.Context, tmdbID int64) (*entities.Movie, error) {
+	if tmdbID <= 0 {
+		return nil, apperror.NewBadRequestError("tmdb_id must be greater than zero")
+	}
+
+	movie, err := m.movieRepository.FindByTMDBID(tmdbID)
+	if err == nil {
+		return movie, nil
+	}
+	if !errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, apperror.NewInternalServerError("failed to find imported movie")
+	}
+
+	detail, err := m.movieGateway.FindByID(ctx, tmdbID)
+	if err != nil {
+		if errors.Is(err, moviegateway.ErrMovieNotFound) {
+			return nil, apperror.NewNotFoundError("movie not found on TMDB")
+		}
+		return nil, apperror.NewInternalServerError("failed to fetch movie from TMDB")
+	}
+	if detail.TMDBID <= 0 || detail.Title == "" || detail.Genre == "" || detail.Duration <= 0 || detail.PosterURL == "" {
+		return nil, apperror.NewBadRequestError("TMDB movie has incomplete booking metadata")
+	}
+
+	movie = &entities.Movie{
+		ID:          uuid.New(),
+		TMDBID:      &detail.TMDBID,
+		Title:       detail.Title,
+		Genre:       detail.Genre,
+		Description: detail.Description,
+		Duration:    detail.Duration,
+		PosterUrl:   detail.PosterURL,
+	}
+	if err := m.movieRepository.Create(movie); err != nil {
+		// A concurrent import may have inserted the same TMDB movie first.
+		existing, findErr := m.movieRepository.FindByTMDBID(tmdbID)
+		if findErr == nil {
+			return existing, nil
+		}
+		return nil, apperror.NewInternalServerError("failed to import movie")
+	}
+
+	return movie, nil
 }
 
 // Delete implements [MovieService].
@@ -78,6 +126,7 @@ func (m *movieService) Update(movie *entities.Movie) error {
 }
 
 type MovieService interface {
+	Import(ctx context.Context, tmdbID int64) (*entities.Movie, error)
 	Create(movie *entities.Movie) error
 	Delete(id string) error
 	Update(movie *entities.Movie) error
@@ -85,6 +134,6 @@ type MovieService interface {
 	FindByID(id string) (*entities.Movie, error)
 }
 
-func NewMovieService(movieRepo movierepository.MovieRepository) MovieService {
-	return &movieService{movieRepository: movieRepo}
+func NewMovieService(movieRepo movierepository.MovieRepository, movieGateway moviegateway.MovieGateway) MovieService {
+	return &movieService{movieRepository: movieRepo, movieGateway: movieGateway}
 }

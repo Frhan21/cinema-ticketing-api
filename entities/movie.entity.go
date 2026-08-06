@@ -8,6 +8,7 @@ import (
 
 type Movie struct {
 	ID          uuid.UUID `gorm:"type:uuid;primaryKey" json:"id"`
+	TMDBID      *int64    `gorm:"column:tmdb_id;uniqueIndex" json:"tmdb_id,omitempty"`
 	Title       string    `json:"name" gorm:"not null"`
 	Genre       string    `json:"genre" gorm:"not null"`
 	Description string    `json:"description"`

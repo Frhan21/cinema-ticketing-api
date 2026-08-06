@@ -15,6 +15,7 @@ type Config struct {
 	SMTP     SMTPConfig
 	Admin    AdminConfig
 	Midtrans MidtransConfig
+	TMDB     TMDBConfig
 }
 
 type AppConfig struct {
@@ -55,6 +56,11 @@ type MidtransConfig struct {
 	ExpiryMinutes int
 }
 
+type TMDBConfig struct {
+	BaseURL     string
+	AccessToken string
+}
+
 func Load() *Config {
 	if err := godotenv.Load(); err != nil {
 		log.Println("Warning: .env file not found, using system environment variables")
@@ -92,6 +98,10 @@ func Load() *Config {
 			ServerKey:     getEnv("MIDTRANS_SERVER_KEY", ""),
 			Environment:   getEnv("MIDTRANS_ENV", "sandbox"),
 			ExpiryMinutes: getEnvInt("PAYMENT_EXPIRY_MINUTES", 15),
+		},
+		TMDB: TMDBConfig{
+			BaseURL:     getEnv("TMDB_BASE_URL", "https://api.themoviedb.org/3"),
+			AccessToken: getEnv("TMDB_ACCESS_TOKEN", ""),
 		},
 	}
 }

@@ -2,6 +2,7 @@ package setup
 
 import (
 	authservice "cinema-ticketing-api/app/auth/service"
+	moviegateway "cinema-ticketing-api/app/movie/gateway"
 	movierepository "cinema-ticketing-api/app/movie/repository"
 	movieservice "cinema-ticketing-api/app/movie/service"
 	paymentgateway "cinema-ticketing-api/app/payment/gateway"
@@ -50,14 +51,18 @@ func InitModule(db *gorm.DB, cfg *config.Config, mail *mailer.Mailer) (*routes.R
 	if err != nil {
 		return nil, nil, fmt.Errorf("initialize Midtrans gateway: %w", err)
 	}
+	movieGateway, err := moviegateway.NewTMDBGateway(cfg.TMDB)
+	if err != nil {
+		return nil, nil, fmt.Errorf("initialize TMDB gateway: %w", err)
+	}
 
 	// Inisialisasi Services
 	authService := authservice.NewAuthService(userRepo, cfg.JWT)
 	userService := userservice.NewUserService(userRepo)
 	studioService := studioservice.NewStudioService(studioRepo)
-	movieService := movieservice.NewMovieService(movieRepo)
+	movieService := movieservice.NewMovieService(movieRepo, movieGateway)
 	seatService := seatservice.NewSeatService(seatRepo)
-	scheduleService := scheduleservice.NewScheduleService(scheduleRepo)
+	scheduleService := scheduleservice.NewScheduleService(scheduleRepo, movieRepo, studioRepo)
 	ticketService := ticketservice.NewTicketService(ticketRepo, seatRepo, transactionRepo, scheduleRepo, promoRepo)
 	paymentExpiry := time.Duration(cfg.Midtrans.ExpiryMinutes) * time.Minute
 	transactionService := ticketservice.NewTransactionService(transactionRepo, ticketRepo, mail, paymentExpiry)

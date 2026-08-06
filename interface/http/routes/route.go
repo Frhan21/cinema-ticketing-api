@@ -84,6 +84,7 @@ func SetupRoutes(r *gin.Engine, ctrl *RouteControllers, jwtCfg config.JWTConfig)
 		adminMovie := movieRoute.Group("/")
 		adminMovie.Use(middleware.AuthMiddleware(jwtCfg), middleware.RoleMiddleware("admin"))
 		{
+			adminMovie.POST("/import", ctrl.Movie.Import)
 			adminMovie.POST("/", ctrl.Movie.Create)
 			adminMovie.PUT("/:id", ctrl.Movie.Update)
 			adminMovie.DELETE("/:id", ctrl.Movie.Delete)
@@ -107,8 +108,10 @@ func SetupRoutes(r *gin.Engine, ctrl *RouteControllers, jwtCfg config.JWTConfig)
 		}
 	}
 
-	// Schedule — authenticated (read) | admin (write)
+	// Schedule — public upcoming reads | authenticated detail reads | admin writes
 	scheduleRoute := api.Group("/schedule")
+	scheduleRoute.GET("/upcoming", ctrl.Schedule.FindUpcoming)
+	scheduleRoute.GET("/movie/tmdb/:tmdb_id", ctrl.Schedule.FindUpcomingByTMDBID)
 	scheduleRoute.Use(middleware.AuthMiddleware(jwtCfg))
 	{
 		scheduleRoute.GET("/", ctrl.Schedule.FindAll)
