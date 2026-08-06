@@ -2,8 +2,10 @@ package database
 
 import (
 	"cinema-ticketing-api/config"
+	"context"
 	"fmt"
 	"log"
+	"time"
 
 	"github.com/golang-migrate/migrate/v4"
 	_ "github.com/golang-migrate/migrate/v4/database/postgres"
@@ -14,9 +16,10 @@ import (
 
 func ConnectDB(cfg config.DBConfig) *gorm.DB {
 	dsn := fmt.Sprintf(
-		"host=%s user=%s password=%s dbname=%s port=%s sslmode=require TimeZone=Asia/Jakarta",
+		"host=%s user=%s password=%s dbname=%s port=%s sslmode=require connect_timeout=10 TimeZone=Asia/Jakarta",
 		cfg.Host, cfg.User, cfg.Password, cfg.Name, cfg.Port,
 	)
+	log.Printf("Connecting to PostgreSQL host=%s port=%s database=%s", cfg.Host, cfg.Port, cfg.Name)
 
 	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
 	if err != nil {
@@ -27,7 +30,9 @@ func ConnectDB(cfg config.DBConfig) *gorm.DB {
 	if err != nil {
 		panic(fmt.Sprintf("Failed to get sql.DB: %v", err))
 	}
-	if err = sqlDB.Ping(); err != nil {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	if err = sqlDB.PingContext(ctx); err != nil {
 		panic(fmt.Sprintf("Database ping failed: %v", err))
 	}
 
@@ -54,7 +59,7 @@ func runMigration(cfg config.DBConfig) {
 // It is shared by the startup auto-migration and the migration CLI (root main.go).
 func PostgresURL(cfg config.DBConfig) string {
 	return fmt.Sprintf(
-		"postgres://%s:%s@%s:%s/%s?sslmode=require",
+		"postgres://%s:%s@%s:%s/%s?sslmode=require&connect_timeout=10",
 		cfg.User, cfg.Password, cfg.Host, cfg.Port, cfg.Name,
 	)
 }

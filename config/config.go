@@ -4,6 +4,7 @@ import (
 	"log"
 	"os"
 	"strconv"
+	"strings"
 
 	"github.com/joho/godotenv"
 )
@@ -68,7 +69,7 @@ func Load() *Config {
 
 	return &Config{
 		App: AppConfig{
-			Port: getEnv("APP_PORT", ":8080"),
+			Port: getAppPort(),
 			Env:  getEnv("APP_ENV", "development"),
 		},
 		DB: DBConfig{
@@ -104,6 +105,17 @@ func Load() *Config {
 			AccessToken: getEnv("TMDB_ACCESS_TOKEN", ""),
 		},
 	}
+}
+
+func getAppPort() string {
+	port := strings.TrimSpace(os.Getenv("PORT"))
+	if port == "" {
+		port = strings.TrimSpace(getEnv("APP_PORT", "8080"))
+	}
+	if strings.Contains(port, ":") {
+		return port
+	}
+	return ":" + port
 }
 
 // getEnv is an internal helper to read env with a fallback default value.
